@@ -187,15 +187,39 @@ This document outlines the step-by-step process of building a standalone Windows
     *   Save button gets `className="save-button-dirty"` when `dirty` is true, otherwise `undefined`.
 3.  **Styling** (`src/App.scss`): `.save-button-dirty` sets `color: var(--g-color-text-danger)` on the button and its inner `.g-button__icon` / `.g-button__text` — theme-aware danger token (red in all three themes).
 
-## Phase 16: Text Zoom Slider
+## Phase 16: Text Zoom Slider & Layout Compactness
 1.  **Text Zoom State**:
-    *   Added `zoom` state (number, default `100`, range `80` to `200` with step `10`).
-    *   Set to always reset to 100% on application startup (no persistence).
+    *   Added `zoom` state (number, default `100`, range `80%` to `200%` with step `10%`).
+    *   Designed it to always reset to `100%` on application startup (no persistence, per user request).
 2.  **Zoom Control UI**:
     *   Added a `.zoom-control` block in the toolbar containing a `MagnifierMinus` button, a native HTML range slider, a `MagnifierPlus` button, and a percentage text display.
     *   Configured the buttons to decrement/increment the zoom by 10% and disable when reaching the boundaries.
-3.  **Styling & Font Scaling**:
+3.  **Proportional Scaling & Spacing Reduction**:
     *   Passed `--editor-zoom-scale` (zoom / 100) as a CSS variable via inline styles to `.app-container`.
-    *   Applied native CSS `zoom` property on `.ProseMirror` and `.cm-editor` inside the editor content containers to scale the entire editing area (text size, line heights, paragraph margins, list item spacing, tables, etc.) proportionally.
-    *   Reduced default spacing/intervals (line-height of ProseMirror and CodeMirror lines, margins of paragraphs, headings, lists) by 25% to make the default layout more compact and neat.
+    *   Applied the native CSS `zoom` property on `.ProseMirror` and `.cm-editor` inside the editor content containers to scale the entire editing area (text size, line heights, paragraph margins, list item spacing, tables, etc.) proportionally.
+    *   Reduced default spacing/intervals (line-height of ProseMirror and CodeMirror lines, margins of paragraphs, headings, lists) by 25% in `src/App.scss` to make the default layout more compact and neat.
     *   Styled the range slider track and thumb in `src/App.scss` to match the Gravity UI theme and colors.
+
+## Phase 17: Project Cleanup & Optimization
+1.  **Unused File Deletion**:
+    *   Deleted `src/App.css` and `src/index.css` (dead files left over from the Vite React template).
+    *   Deleted `src-tauri/2` (accidental log file created by a terminal redirect typo).
+2.  **Garbage Collection**:
+    *   Cleaned the Rust build target and Vite build output (`cargo clean` and removed `dist/`), freeing up **10.1 GB** of disk space.
+
+## Phase 18: GitHub Release, Licensing & CI/CD (v1.0.2)
+1.  **Version Bump**:
+    *   Updated the version to `1.0.2` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2.  **Licensing & Attribution**:
+    *   Created `LICENSE` file under the MIT License, with copyright to Andrey Obushev, OpenSky Kft.
+    *   Added a **License & Third-Party Credits** section to the end of `README.md`, listing licenses for `@gravity-ui/markdown-editor`, `@gravity-ui/uikit`, Tauri, Mammoth, and SheetJS.
+3.  **GitHub-Ready Documentation**:
+    *   Rewrote `README.md` to be a professional GitHub-ready document with Shields.io badges, logo, installation guide, project structure, and direct download links for the release assets.
+4.  **CI/CD Workflow**:
+    *   Created `.github/workflows/release.yml` using `tauri-apps/tauri-action@v2` to automatically compile and package installers for Windows x64 (`x86_64-pc-windows-msvc`), Windows ARM64 (`aarch64-pc-windows-msvc`), and macOS Universal (`universal-apple-darwin` for both Intel and Apple Silicon) on tag pushes.
+5.  **Repository Publication**:
+    *   Committed all changes locally.
+    *   Created a private repository on GitHub (`ButcchPro/gravity-markdown`) using the GitHub CLI, and pushed the code to the `master` branch.
+    *   Tagged the commit as `v1.0.2` and pushed the tag to GitHub, triggering the CI/CD release workflow.
+    *   Changed the repository visibility to **public** (`gh repo edit --visibility public`).
+
