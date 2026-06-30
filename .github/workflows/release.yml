@@ -1,0 +1,57 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest"
+            args: "--target universal-apple-darwin"
+          - platform: "windows-latest"
+            args: "--target x86_64-pc-windows-msvc"
+          - platform: "windows-latest"
+            args: "--target aarch64-pc-windows-msvc"
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || (matrix.args == '--target aarch64-pc-windows-msvc' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc') }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and Publish
+        uses: tauri-apps/tauri-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "GravityMD ${{ github.ref_name }}"
+          releaseBody: "Automated release of GravityMD ${{ github.ref_name }}. Choose the installer for your platform below."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
