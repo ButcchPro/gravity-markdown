@@ -7,7 +7,7 @@
 <h3 align="center">GravityMD</h3>
 
 <p align="center">
-  A premium, lightweight, standalone desktop Markdown editor built with <b>Tauri 2.x</b>, <b>React 19</b>, and <b>Gravity UI</b>.
+  A lightweight, standalone desktop Markdown editor built with <b>Tauri 2.x</b>, <b>React 19</b>, and <b>Gravity UI</b>.
 </p>
 
 <p align="center">
