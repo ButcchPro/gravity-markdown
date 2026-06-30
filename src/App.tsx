@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useMarkdownEditor, MarkdownEditorView } from '@gravity-ui/markdown-editor';
 import { LatexExtension } from '@gravity-ui/markdown-editor-latex-extension';
 import { Mermaid } from '@gravity-ui/markdown-editor/extensions/additional/Mermaid/index.js';
-import { Button, Text, Icon, ThemeProvider, ToasterProvider, ToasterComponent, Toaster, type Theme } from '@gravity-ui/uikit';
-import { FolderOpen, FloppyDisk, FileArrowUp, Moon, Sun, ArrowDownToSquare, ArrowUpFromSquare } from '@gravity-ui/icons';
+import { Button, Text, Icon, ThemeProvider, ToasterProvider, ToasterComponent, Toaster, Dialog, type Theme } from '@gravity-ui/uikit';
+import { FolderOpen, FloppyDisk, FileArrowUp, Moon, Sun, ArrowDownToSquare, ArrowUpFromSquare, CircleInfo, MagnifierMinus, MagnifierPlus } from '@gravity-ui/icons';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile, readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { Store } from '@tauri-apps/plugin-store';
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
 import * as XLSX from 'xlsx';
@@ -45,7 +48,7 @@ async function saveTheme(theme: AppTheme): Promise<void> {
   }
 }
 
-function EditorWrapper({ initialContent, onSave }: { initialContent: string; onSave: (content: string) => void }) {
+function EditorWrapper({ initialContent, onSave, onAbout }: { initialContent: string; onSave: (content: string) => void; onAbout: () => void }) {
   const editor = useMarkdownEditor({
     md: { html: false },
     initial: { markup: initialContent },
@@ -57,12 +60,46 @@ function EditorWrapper({ initialContent, onSave }: { initialContent: string; onS
     }
   });
 
+  const [settingsEl, setSettingsEl] = useState<HTMLElement | null>(null);
+
   useEffect(() => {
     onSave(editor.getValue());
     editor.on('change', () => onSave(editor.getValue()));
   }, [editor, onSave]);
 
-  return <MarkdownEditorView editor={editor} stickyToolbar autofocus />;
+  useEffect(() => {
+    const find = () => {
+      const el = document.querySelector('.g-md-editor-settings');
+      if (el) {
+        setSettingsEl(el as HTMLElement);
+        return true;
+      }
+      return false;
+    };
+    if (!find()) {
+      const id = setTimeout(find, 200);
+      return () => clearTimeout(id);
+    }
+  }, []);
+
+  return (
+    <div className="editor-wrapper">
+      <MarkdownEditorView editor={editor} stickyToolbar autofocus />
+      {settingsEl && createPortal(
+        <Button
+          onClick={onAbout}
+          view="flat"
+          size="m"
+          className="about-button"
+          title="About"
+          aria-label="About"
+        >
+          <Icon data={CircleInfo} />
+        </Button>,
+        settingsEl
+      )}
+    </div>
+  );
 }
 
 export default function App() {
@@ -71,7 +108,10 @@ export default function App() {
   const [currentValue, setCurrentValue] = useState(content);
   const [fileKey, setFileKey] = useState(0);
   const [theme, setTheme] = useState<AppTheme>('dark');
+  const [zoom, setZoom] = useState<number>(100);
   const [ready, setReady] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
 
   const handleOpenFile = useCallback(async (path: string) => {
     try {
@@ -95,7 +135,9 @@ export default function App() {
     (async () => {
       const savedTheme = await loadTheme();
       setTheme(savedTheme);
+      
       setReady(true);
+      setAppVersion(await getVersion());
 
       const initialFile: string | null = await invoke('get_initial_file');
       if (initialFile) {
@@ -116,6 +158,12 @@ export default function App() {
   };
 
   const gravityTheme: Theme = theme === 'solarized-light' ? 'light' : theme;
+  const dirty = currentValue !== content;
+
+  const handleOpenExternal = (e: React.MouseEvent, url: string) => {
+    e.preventDefault();
+    openUrl(url);
+  };
 
   const loadContent = (newContent: string, newFile: string | null = null) => {
     setCurrentFile(newFile);
@@ -148,6 +196,7 @@ export default function App() {
         } catch {
           await invoke('write_file_content', { path: currentFile, content: currentValue });
         }
+        setContent(currentValue);
         toaster.add({ name: 'save', title: 'Saved!', theme: 'success' });
       } else {
         await handleSaveAs();
@@ -170,6 +219,7 @@ export default function App() {
           await invoke('write_file_content', { path: file, content: currentValue });
         }
         setCurrentFile(file);
+        setContent(currentValue);
         toaster.add({ name: 'save', title: 'Saved!', theme: 'success' });
       }
     } catch (e) {
@@ -372,12 +422,15 @@ export default function App() {
   return (
     <ThemeProvider theme={gravityTheme}>
       <ToasterProvider toaster={toaster}>
-        <div className={`app-container${theme === 'solarized-light' ? ' theme-solarized-light' : ''}`}>
+        <div 
+          className={`app-container${theme === 'solarized-light' ? ' theme-solarized-light' : ''}`}
+          style={{ '--editor-zoom-scale': zoom / 100 } as React.CSSProperties}
+        >
           <div className="toolbar">
             <Button onClick={handleOpen} view="flat" title="Open Markdown">
               <Icon data={FolderOpen} /> MD
             </Button>
-            <Button onClick={handleSave} view="flat" title="Save Markdown">
+            <Button onClick={handleSave} view="flat" title="Save Markdown" className={dirty ? 'save-button-dirty' : undefined}>
               <Icon data={FloppyDisk} /> MD
             </Button>
             <Button onClick={handleSaveAs} view="flat" title="Save Markdown As...">
@@ -398,6 +451,40 @@ export default function App() {
 
             <div className="toolbar-divider" />
 
+            <div className="zoom-control">
+              <Button 
+                onClick={() => setZoom(prev => Math.max(80, prev - 10))} 
+                view="flat" 
+                title="Zoom Out"
+                disabled={zoom <= 80}
+              >
+                <Icon data={MagnifierMinus} size={16} />
+              </Button>
+              <input 
+                type="range" 
+                min="80" 
+                max="200" 
+                step="10" 
+                value={zoom} 
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="zoom-slider"
+                title={`Text Zoom: ${zoom}%`}
+              />
+              <Button 
+                onClick={() => setZoom(prev => Math.min(200, prev + 10))} 
+                view="flat" 
+                title="Zoom In"
+                disabled={zoom >= 200}
+              >
+                <Icon data={MagnifierPlus} size={16} />
+              </Button>
+              <Text variant="body-1" color="secondary" className="zoom-value">
+                {zoom}%
+              </Text>
+            </div>
+
+            <div className="toolbar-divider" />
+
             <Button onClick={toggleTheme} view="flat" className="theme-toggle" title={theme}>
               <Icon data={theme === 'dark' ? Sun : theme === 'light' ? Moon : Sun} />
             </Button>
@@ -406,9 +493,32 @@ export default function App() {
             </Text>
           </div>
           <div className="editor-container">
-            <EditorWrapper key={fileKey} initialContent={content} onSave={setCurrentValue} />
+            <EditorWrapper key={fileKey} initialContent={content} onSave={setCurrentValue} onAbout={() => setAboutOpen(true)} />
           </div>
         </div>
+        <Dialog open={aboutOpen} onClose={() => setAboutOpen(false)} hasCloseButton size="s">
+          <Dialog.Body>
+            <div className="about-content">
+              <div className="about-title">GravityMD <span className="about-version">v{appVersion}</span></div>
+              <div className="about-author">
+                Developed by Andrey Obushev,{' '}
+                <a
+                  href="https://openskykft.com"
+                  onClick={(e) => handleOpenExternal(e, 'https://openskykft.com')}
+                  className="about-link"
+                >OpenSky Kft.</a>
+              </div>
+              <div className="about-based">
+                Based on{' '}
+                <a
+                  href="https://github.com/gravity-ui/markdown-editor"
+                  onClick={(e) => handleOpenExternal(e, 'https://github.com/gravity-ui/markdown-editor')}
+                  className="about-link"
+                >Gravity UI Markdown Editor</a>
+              </div>
+            </div>
+          </Dialog.Body>
+        </Dialog>
         <ToasterComponent />
       </ToasterProvider>
     </ThemeProvider>

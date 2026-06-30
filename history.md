@@ -150,3 +150,52 @@ This document outlines the step-by-step process of building a standalone Windows
     *   Portable Executable: `src-tauri\target\release\gravitymd.exe`
     *   MSI Installer: `src-tauri\target\release\bundle\msi\gravitymd_1.0.0_x64_en-US.msi`
     *   NSIS Installer: `src-tauri\target\release\bundle\nsis\gravitymd_1.0.0_x64-setup.exe`
+
+## Phase 13: Toolbar Visual Separation
+1.  **Problem**: Toolbar zone was visually indistinct from the editor working area — the divider line (`--g-color-line-generic`) was too faint across all three themes (dark/light/solarized-light).
+2.  **Fix**: In `src/App.scss`, `.toolbar`:
+    *   Replaced `border-bottom` color with `--g-color-line-generic-active` (black-300 light / white-600 dark / `#93a1a1` solarized) — higher contrast, theme-aware.
+    *   Added `box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12)` for a lifted-panel effect.
+    *   Added `z-index: 1` so the toolbar shadow renders above the editor content.
+3.  **Formatting Toolbar Separator + Lost Padding Restoration**:
+    *   **Bug**: Left/right padding inside the editor text area had silently disappeared after Phase 8 (Gravity UI ecosystem update). Root cause: `src/App.scss` targeted `.g-md-editor` and `.g-md-editor__content` — selectors that no longer exist in the current Gravity UI version. The real classes are `.g-md-editor-component` (root), `.g-md-wysiwyg-editor__editor` / `.g-md-markup-editor__editor` (content), `.g-md-wysiwyg-editor__toolbar` / `.g-md-markup-editor__toolbar` (formatting toolbar).
+    *   **Fix**: In `src/App.scss`, `.editor-container`:
+        *   Removed dead `.g-md-editor` and `.g-md-editor__content` rules.
+        *   Restored `padding: 0 21px` on `.g-md-wysiwyg-editor__editor` and `.g-md-markup-editor__editor` (covers both WYSIWYG and markup modes).
+        *   Added `border-bottom: 1px solid var(--g-color-line-generic-active)` to `.g-md-wysiwyg-editor__toolbar` and `.g-md-markup-editor__toolbar` to visually separate the text-style toolbar from the editing field (consistent with the app toolbar separator).
+
+## Phase 14: About Button + About Dialog
+1.  **About Button**: Added a dedicated `CircleInfo` icon button (`@gravity-ui/icons`) in the editor formatting toolbar, positioned next to the built-in Gravity UI settings gear (top-right). Rationale: the built-in gear's dropdown menu (`EditorSettings`) hardcodes its items (mode/toolbar/split) and exposes no API for custom items, so a separate adjacent button was chosen over a DOM hack or full settings reimplementation.
+    *   Implementation: `EditorWrapper` now accepts an `onAbout` callback and wraps `MarkdownEditorView` in a `.editor-wrapper` (position relative) with an absolutely-positioned `.about-button` (`top: 4px; right: 44px; z-index: 2`) — placed just left of the gear.
+2.  **About Dialog**: Custom `Dialog` (Gravity UI uikit) shown when the About button is clicked. No header/caption — the title is rendered as the first line of the body:
+    *   **Title line**: `GravityMD v{version}` — version loaded dynamically via `getVersion()` from `@tauri-apps/api/app` (reads `tauri.conf.json` `version` field, currently `1.0.1`). No hardcoding — updates automatically when the version changes.
+    *   **Author**: "Developed by Andrey Obushev, OpenSky Kft." — "OpenSky Kft." is a clickable link to `https://openskykft.com`.
+    *   **Based on**: "Based on Gravity UI Markdown Editor" — link to the parent repository `https://github.com/gravity-ui/markdown-editor`.
+3.  **External Link Support**: Added `@tauri-apps/plugin-opener` to open URLs in the system default browser:
+    *   npm: `@tauri-apps/plugin-opener` installed.
+    *   Rust: `tauri-plugin-opener = "2"` added to `Cargo.toml`; `.plugin(tauri_plugin_opener::init())` registered in `lib.rs`.
+    *   Capabilities: `opener:default` permission added to `capabilities/default.json`.
+    *   Frontend: `openUrl()` from `@tauri-apps/plugin-opener` called on link click with `preventDefault()`.
+4.  **Styling**: `.about-content` styles in `App.scss` — title with version (secondary color), link styling using Gravity UI `--g-color-text-link` / `--g-color-text-link-hover` tokens (theme-aware). `.about-button` positioned via absolute coordinates within `.editor-wrapper`.
+
+## Phase 15: Unsaved Changes Indicator (Save Button)
+1.  **Behavior**: The "Save MD" toolbar button turns red while there are unsaved edits in the editor; reverts to default color after a successful save.
+2.  **Implementation** (`src/App.tsx`):
+    *   Derived state `dirty = currentValue !== content` — compares the live editor value (`currentValue`, updated via the editor `change` event) against the last-saved snapshot (`content`).
+    *   `handleSave` and `handleSaveAs` now call `setContent(currentValue)` after a successful write, resetting `dirty` to `false`.
+    *   `loadContent` already sets both `content` and `currentValue` to the same value on open/import — so newly opened files start clean.
+    *   Save button gets `className="save-button-dirty"` when `dirty` is true, otherwise `undefined`.
+3.  **Styling** (`src/App.scss`): `.save-button-dirty` sets `color: var(--g-color-text-danger)` on the button and its inner `.g-button__icon` / `.g-button__text` — theme-aware danger token (red in all three themes).
+
+## Phase 16: Text Zoom Slider
+1.  **Text Zoom State**:
+    *   Added `zoom` state (number, default `100`, range `80` to `200` with step `10`).
+    *   Set to always reset to 100% on application startup (no persistence).
+2.  **Zoom Control UI**:
+    *   Added a `.zoom-control` block in the toolbar containing a `MagnifierMinus` button, a native HTML range slider, a `MagnifierPlus` button, and a percentage text display.
+    *   Configured the buttons to decrement/increment the zoom by 10% and disable when reaching the boundaries.
+3.  **Styling & Font Scaling**:
+    *   Passed `--editor-zoom-scale` (zoom / 100) as a CSS variable via inline styles to `.app-container`.
+    *   Applied native CSS `zoom` property on `.ProseMirror` and `.cm-editor` inside the editor content containers to scale the entire editing area (text size, line heights, paragraph margins, list item spacing, tables, etc.) proportionally.
+    *   Reduced default spacing/intervals (line-height of ProseMirror and CodeMirror lines, margins of paragraphs, headings, lists) by 25% to make the default layout more compact and neat.
+    *   Styled the range slider track and thumb in `src/App.scss` to match the Gravity UI theme and colors.

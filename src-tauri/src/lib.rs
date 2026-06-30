@@ -39,6 +39,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_opener::init())
         .manage(InitialFile(Mutex::new(initial_file)))
         .invoke_handler(tauri::generate_handler![get_initial_file, read_file_content, write_file_content, write_file_binary])
         .setup(|app| {

@@ -12,9 +12,59 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--g-color-line-generic);
+  border-bottom: 1px solid var(--g-color-line-generic-active);
   background-color: var(--g-color-base-generic);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
+  z-index: 1;
+
+  .save-button-dirty {
+    color: var(--g-color-text-danger);
+
+    .g-button__icon,
+    .g-button__text {
+      color: var(--g-color-text-danger);
+    }
+  }
+
+  .zoom-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    
+    .zoom-slider {
+      width: 80px;
+      height: 4px;
+      background: var(--g-color-line-generic-active);
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      margin: 0 4px;
+      
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--g-color-text-link);
+        transition: transform 0.1s ease, background-color 0.1s ease;
+        
+        &:hover {
+          transform: scale(1.2);
+          background: var(--g-color-text-link-hover);
+        }
+      }
+    }
+    
+    .zoom-value {
+      font-size: var(--g-text-body-1-font-size);
+      color: var(--g-color-text-secondary);
+      min-width: 40px;
+      text-align: right;
+      margin-left: 4px;
+    }
+  }
 
   .file-path {
     margin-left: auto;
@@ -31,13 +81,106 @@
   overflow: hidden;
   position: relative;
 
-  .g-md-editor {
+  .editor-wrapper {
+    position: relative;
     height: 100%;
-    display: flex;
-    flex-direction: column;
   }
 
-  .g-md-editor__content {
+  .about-button {
+    margin-left: 2px;
+  }
+
+  .g-md-wysiwyg-editor__toolbar,
+  .g-md-markup-editor__toolbar {
+    position: relative;
+    z-index: 1;
+    padding-bottom: 4px;
+    background-color: var(--g-color-base-generic);
+    border-bottom: 1px solid var(--g-color-line-generic-active);
+  }
+
+  .g-md-wysiwyg-editor__editor,
+  .g-md-markup-editor__editor {
     padding: 0 21px;
+    
+    // Scale the entire editor content (text, line-height, margins, and paddings)
+    .ProseMirror,
+    .cm-editor {
+      zoom: var(--editor-zoom-scale, 1);
+    }
+
+    // Reduce the default spacing/intervals by 25%
+    .ProseMirror {
+      line-height: 1.2 !important; // 25% reduction from typical ~1.6
+
+      p, ul, ol, dl, table, blockquote, pre {
+        margin-top: 12px !important;
+        margin-bottom: 12px !important;
+        
+        &:first-child {
+          margin-top: 0 !important;
+        }
+      }
+      
+      li {
+        margin-top: 4px !important;
+        margin-bottom: 4px !important;
+        
+        p {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+        }
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        margin-top: 18px !important;
+        margin-bottom: 8px !important;
+        line-height: 1.2 !important;
+        
+        &:first-child {
+          margin-top: 0 !important;
+        }
+      }
+    }
+
+    .cm-editor {
+      .cm-line {
+        line-height: 1.2 !important; // 25% reduction from CodeMirror's default line-height
+      }
+    }
+  }
+}
+
+.about-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+
+  .about-title {
+    font-size: var(--g-text-header-1-font-size);
+    font-weight: 600;
+  }
+
+  .about-version {
+    color: var(--g-color-text-secondary);
+    font-weight: 400;
+  }
+
+  .about-author,
+  .about-based {
+    font-size: var(--g-text-body-2-font-size);
+    color: var(--g-color-text-primary);
+  }
+
+  .about-link {
+    color: var(--g-color-text-link);
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--g-color-text-link-hover);
+      text-decoration: underline;
+    }
   }
 }
