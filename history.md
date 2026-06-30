@@ -215,11 +215,17 @@ This document outlines the step-by-step process of building a standalone Windows
     *   Added a **License & Third-Party Credits** section to the end of `README.md`, listing licenses for `@gravity-ui/markdown-editor`, `@gravity-ui/uikit`, Tauri, Mammoth, and SheetJS.
 3.  **GitHub-Ready Documentation**:
     *   Rewrote `README.md` to be a professional GitHub-ready document with Shields.io badges, logo, installation guide, project structure, and direct download links for the release assets.
-4.  **CI/CD Workflow**:
-    *   Created `.github/workflows/release.yml` using `tauri-apps/tauri-action@v2` to automatically compile and package installers for Windows x64 (`x86_64-pc-windows-msvc`), Windows ARM64 (`aarch64-pc-windows-msvc`), and macOS Universal (`universal-apple-darwin` for both Intel and Apple Silicon) on tag pushes.
-5.  **Repository Publication**:
+4.  **CI/CD Workflow & Fixes**:
+    *   Created `.github/workflows/release.yml` using `tauri-apps/tauri-action@v0` to automatically compile and package installers for Windows x64 (`x86_64-pc-windows-msvc`), Windows ARM64 (`aarch64-pc-windows-msvc`), and macOS Universal (`universal-apple-darwin` for both Intel and Apple Silicon) on tag pushes.
+    *   **CI Fix 1**: Fixed `tauri-apps/tauri-action` version from `@v2` (non-existent) to `@v0` (stable).
+    *   **CI Fix 2**: Added `--legacy-peer-deps` to the `npm ci` step in the workflow to bypass peer dependency conflicts in the Gravity UI ecosystem.
+    *   **CI Fix 3**: Added `"tauri": "tauri"` script to `package.json` to support `tauri-action`'s default `npm run tauri build` command.
+5.  **Repository Publication & Successful Release**:
     *   Committed all changes locally.
     *   Created a private repository on GitHub (`ButcchPro/gravity-markdown`) using the GitHub CLI, and pushed the code to the `master` branch.
     *   Tagged the commit as `v1.0.2` and pushed the tag to GitHub, triggering the CI/CD release workflow.
     *   Changed the repository visibility to **public** (`gh repo edit --visibility public`).
+    *   **Successful Build**: The GitHub Actions runner successfully compiled all three targets: Windows x64 (8m 18s), Windows ARM64 (7m 47s), and macOS Universal (6m 56s).
+    *   **Release Published**: The draft release was successfully published by the user on GitHub, making the direct download links in `README.md` active.
+
 
