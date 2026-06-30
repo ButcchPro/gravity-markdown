@@ -228,4 +228,21 @@ This document outlines the step-by-step process of building a standalone Windows
     *   **Successful Build**: The GitHub Actions runner successfully compiled all three targets: Windows x64 (8m 18s), Windows ARM64 (7m 47s), and macOS Universal (6m 56s).
     *   **Release Published**: The draft release was successfully published by the user on GitHub, making the direct download links in `README.md` active.
 
-
+## Phase 19: Table Rendering & DOCX Export Fixes
+1. **DOCX Export Table Parser Bug Fix**:
+    *   **Bug**: The Markdown table parser used `.filter(Boolean)` on split cell arrays. This silently discarded any empty cells (e.g. `| cell 1 | | cell 3 |`), causing subsequent columns to shift to the left and break alignment.
+    *   **Fix**: Modified `src/App.tsx` table parser to split by `|`, safely shift/pop the outer empty elements resulting from the leading/trailing pipes, and map the remaining cells without filtering out empty ones.
+2. **Table Visual Styles**:
+    *   **Bug**: Tables rendered in the WYSIWYG editor (`.ProseMirror`) and preview had no grid lines or borders, making them visually indistinct and hard to edit.
+    *   **Bug**: Paragraphs (`p`) inside table cells inherited the global `.ProseMirror p` 12px margins, resulting in extremely tall, stretched cells.
+    *   **Fix**: Added a clean, theme-aware table style in `src/App.scss` under `.editor-container` using Gravity UI's CSS variables (`--g-color-line-generic`, `--g-color-base-generic`, `--g-color-base-generic-ultralight`). Added a reset rule `margin: 0 !important` on paragraphs inside table cells to restore compact cell heights.
+3. **Diplodoc YFM CSS Integration**:
+    *   **Improvement**: Imported `@diplodoc/transform/dist/css/yfm.css` in `src/main.tsx` to ensure all Yandex Flavored Markdown (YFM) features (including notes, cuts, tables) are styled properly in preview mode.
+4. **HTML Table Paste Bug Fix**:
+    *   **Bug**: When copying tables from web pages, Excel, or Google Sheets and pasting them "normally" (Ctrl+V) into the WYSIWYG editor, the table structure was completely broken.
+    *   **Cause 1 (Cell Alignment)**: The editor's internal `Table` extension schema defined a strict `parseDOM` for `th` and `td` elements that returned `null` (discarding the element) if the proprietary `cell-align` attribute was missing. Since standard HTML tables lack this attribute, the cells were ignored, breaking the table layout.
+    *   **Cause 2 (Missing thead/tbody)**: The editor's `table` schema enforces a strict content model `thead tbody` (both required). Most pasted HTML tables (from Excel, Google Sheets, or webpages) only have `<tbody>` or direct `<tr>` children. This mismatch caused ProseMirror's default HTML parser to fail to parse the table.
+    *   **Fix 1 (Schema Override)**: Used `builder.overrideNodeSpec` in [src/App.tsx](file:///D:/AI%20Agent/Markdown/gravity-markdown/src/App.tsx) for both `th` and `td` to override `parseDOM` and fall back to standard HTML `align` attributes or `style.textAlign` values instead of returning `null`.
+    *   **Fix 2 (Custom Paste Interceptor)**: Added a custom ProseMirror plugin in [src/App.tsx](file:///D:/AI%20Agent/Markdown/gravity-markdown/src/App.tsx) using `builder.addPlugin`. The plugin intercepts paste events containing HTML tables, converts the HTML to a clean Markdown table via `turndown` (using a custom table conversion rule), and parses the Markdown using `deps.markupParser.parse`. This ensures the table is parsed through the editor's robust Markdown parser which automatically generates the correct YFM schema.
+5. **Verification**:
+    *   Ran `npm run build` to verify clean compilation and bundling with the new styles, schema overrides, and paste interceptor.

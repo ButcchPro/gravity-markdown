@@ -149,6 +149,34 @@
       }
     }
   }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--g-color-line-generic);
+    
+    th, td {
+      border: 1px solid var(--g-color-line-generic);
+      padding: 8px 12px;
+      text-align: left;
+      vertical-align: top;
+      
+      p {
+        margin: 0 !important;
+      }
+    }
+
+    th {
+      background-color: var(--g-color-base-generic);
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background-color: var(--g-color-base-generic-ultralight);
+    }
+  }
 }
 
 .about-content {
