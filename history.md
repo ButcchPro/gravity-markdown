@@ -246,3 +246,8 @@ This document outlines the step-by-step process of building a standalone Windows
     *   **Fix 2 (Custom Paste Interceptor)**: Added a custom ProseMirror plugin in [src/App.tsx](file:///D:/AI%20Agent/Markdown/gravity-markdown/src/App.tsx) using `builder.addPlugin`. The plugin intercepts paste events containing HTML tables, converts the HTML to a clean Markdown table via `turndown` (using a custom table conversion rule), and parses the Markdown using `deps.markupParser.parse`. This ensures the table is parsed through the editor's robust Markdown parser which automatically generates the correct YFM schema.
 5. **Verification**:
     *   Ran `npm run build` to verify clean compilation and bundling with the new styles, schema overrides, and paste interceptor.
+
+## Phase 20: Release v1.0.3
+1. **Version Bump**:
+    *   Bumped version from `1.0.2` to `1.0.3` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` to prepare for GitHub release.
+
