@@ -42,7 +42,7 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
