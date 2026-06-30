@@ -250,4 +250,9 @@ This document outlines the step-by-step process of building a standalone Windows
 ## Phase 20: Release v1.0.3
 1. **Version Bump**:
     *   Bumped version from `1.0.2` to `1.0.3` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` to prepare for GitHub release.
+2. **Documentation Update**:
+    *   Updated the direct download links in `README.md` to point to the new `v1.0.3` assets.
+3. **GitHub Publication**:
+    *   Committed and pushed the version bump and documentation changes to `master`.
+    *   Created and pushed the `v1.0.3` tag, triggering the GitHub Actions release workflow which compiled and packaged the installers successfully.
 
