@@ -26,13 +26,13 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**: 
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.2/gravitymd_1.0.2_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.2/gravitymd_1.0.2_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.3/gravitymd_1.0.3_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.3/gravitymd_1.0.3_x64-setup.exe)
 *   💻 **Windows (ARM64)**: 
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.2/gravitymd_1.0.2_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.2/gravitymd_1.0.2_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.3/gravitymd_1.0.3_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.3/gravitymd_1.0.3_arm64-setup.exe)
 *   🍎 **macOS (Universal)**: 
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.2/gravitymd_1.0.2_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.3/gravitymd_1.0.3_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
 
