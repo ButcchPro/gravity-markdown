@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { useMarkdownEditor, MarkdownEditorView } from '@gravity-ui/markdown-editor';
 import { LatexExtension } from '@gravity-ui/markdown-editor-latex-extension';
 import { Mermaid } from '@gravity-ui/markdown-editor/extensions/additional/Mermaid/index.js';
@@ -11,6 +10,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile, readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { Store } from '@tauri-apps/plugin-store';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import mammoth from 'mammoth';
@@ -50,7 +50,7 @@ async function saveTheme(theme: AppTheme): Promise<void> {
   }
 }
 
-function EditorWrapper({ initialContent, onSave, onAbout }: { initialContent: string; onSave: (content: string) => void; onAbout: () => void }) {
+function EditorWrapper({ initialContent, onSave }: { initialContent: string; onSave: (content: string) => void }) {
   const editor = useMarkdownEditor({
     md: { html: false },
     initial: { markup: initialContent },
@@ -174,44 +174,14 @@ function EditorWrapper({ initialContent, onSave, onAbout }: { initialContent: st
     }
   });
 
-  const [settingsEl, setSettingsEl] = useState<HTMLElement | null>(null);
-
   useEffect(() => {
     onSave(editor.getValue());
     editor.on('change', () => onSave(editor.getValue()));
   }, [editor, onSave]);
 
-  useEffect(() => {
-    const find = () => {
-      const el = document.querySelector('.g-md-editor-settings');
-      if (el) {
-        setSettingsEl(el as HTMLElement);
-        return true;
-      }
-      return false;
-    };
-    if (!find()) {
-      const id = setTimeout(find, 200);
-      return () => clearTimeout(id);
-    }
-  }, []);
-
   return (
     <div className="editor-wrapper">
       <MarkdownEditorView editor={editor} stickyToolbar autofocus />
-      {settingsEl && createPortal(
-        <Button
-          onClick={onAbout}
-          view="flat"
-          size="m"
-          className="about-button"
-          title="About"
-          aria-label="About"
-        >
-          <Icon data={CircleInfo} />
-        </Button>,
-        settingsEl
-      )}
     </div>
   );
 }
@@ -265,6 +235,12 @@ export default function App() {
       saveTheme(theme);
     }
   }, [theme, ready]);
+
+  // Update window title when file changes
+  useEffect(() => {
+    const filename = currentFile ? currentFile.split(/[\\/]/).pop() : 'Untitled';
+    getCurrentWindow().setTitle(`Gravity Markdown — ${filename}`).catch(console.error);
+  }, [currentFile]);
 
   const toggleTheme = () => {
     const next: AppTheme = theme === 'dark' ? 'light' : theme === 'light' ? 'solarized-light' : 'dark';
@@ -607,12 +583,12 @@ export default function App() {
             <Button onClick={toggleTheme} view="flat" className="theme-toggle" title={theme}>
               <Icon data={theme === 'dark' ? Sun : theme === 'light' ? Moon : Sun} />
             </Button>
-            <Text variant="body-2" color="secondary" className="file-path">
-              {currentFile || 'Untitled.md'}
-            </Text>
+            <Button onClick={() => setAboutOpen(true)} view="flat" title="About" aria-label="About">
+              <Icon data={CircleInfo} />
+            </Button>
           </div>
           <div className="editor-container">
-            <EditorWrapper key={fileKey} initialContent={content} onSave={setCurrentValue} onAbout={() => setAboutOpen(true)} />
+            <EditorWrapper key={fileKey} initialContent={content} onSave={setCurrentValue} />
           </div>
         </div>
         <Dialog open={aboutOpen} onClose={() => setAboutOpen(false)} hasCloseButton size="s">

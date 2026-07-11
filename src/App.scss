@@ -38,11 +38,13 @@
       background: var(--g-color-line-generic-active);
       border-radius: 2px;
       outline: none;
+      appearance: none;
       -webkit-appearance: none;
       cursor: pointer;
       margin: 0 4px;
       
       &::-webkit-slider-thumb {
+        appearance: none;
         -webkit-appearance: none;
         width: 12px;
         height: 12px;
@@ -66,14 +68,6 @@
     }
   }
 
-  .file-path {
-    margin-left: auto;
-    opacity: 0.7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 50%;
-  }
 }
 
 .editor-container {
@@ -84,10 +78,6 @@
   .editor-wrapper {
     position: relative;
     height: 100%;
-  }
-
-  .about-button {
-    margin-left: 2px;
   }
 
   .g-md-wysiwyg-editor__toolbar,
