@@ -256,3 +256,78 @@ This document outlines the step-by-step process of building a standalone Windows
     *   Committed and pushed the version bump and documentation changes to `master`.
     *   Created and pushed the `v1.0.3` tag, triggering the GitHub Actions release workflow which compiled and packaged the installers successfully.
 
+## Phase 21: LaTeX Rendering Fix
+1. **Bug**: LaTeX expressions (inline `$...$` and block `$$...$$`) were not rendering in the editor — KaTeX CSS and runtime scripts were never loaded.
+2. **Root Cause**: In `src/components/EditorWrapper.tsx`, the `LatexExtension` was configured with `loadRuntimeScript: () => {}` (empty stub), which prevented the KaTeX runtime and styles from loading. Additionally, no KaTeX/LaTeX CSS was imported anywhere in the app.
+3. **Fix 1 (loadRuntimeScript)**: Replaced the empty stub in `EditorWrapper.tsx` with the proper dynamic imports as documented in the `@gravity-ui/markdown-editor-latex-extension` README:
+  ```ts
+  loadRuntimeScript: () => {
+    import('@diplodoc/latex-extension/runtime');
+    import('@diplodoc/latex-extension/runtime/styles');
+  },
+  ```
+4. **Fix 2 (Static CSS Import)**: Added `import '@diplodoc/latex-extension/runtime/styles'` to `src/main.tsx` to ensure KaTeX CSS and fonts are available on first render without race conditions.
+5. **Fix 3 (Type Declaration)**: Created `src/vite-env.d.ts` with `declare module '@diplodoc/latex-extension/runtime/styles'` to resolve TypeScript's "cannot find module" error for the CSS side-effect import.
+6. **Verification**: `npm run build` completed successfully. KaTeX fonts (woff2, woff, ttf) and CSS are now bundled in `dist/assets/`.
+7. **DOCX Export LaTeX Support**: Added LaTeX handling to `src/hooks/useExport.ts`:
+   - **Inline LaTeX** (`$...$`): Added `\$([^$]+)\$` pattern to `parseInline()` regex. Inline formulas are rendered as italic `Cambria Math` font in DOCX.
+   - **Block LaTeX** (`$$...$$`): Added block-level parser in the main export loop supporting both single-line (`$$E=mc^2$$`) and multi-line block formulas. Block formulas are rendered as centered paragraphs with italic `Cambria Math` font.
+   - Previously, LaTeX expressions were exported as raw text with `$` symbols, making formulas unreadable in DOCX.
+8. **LaTeX → Unicode Converter**: Created `src/utils/latexToUnicode.ts` — a comprehensive converter that transforms LaTeX math commands to Unicode characters during DOCX export:
+   - Greek letters (`\gamma` → γ, `\Delta` → Δ, etc.)
+   - Relations (`\ge` → ≥, `\le` → ≤, `\neq` → ≠, etc.)
+   - Operators (`\pm` → ±, `\times` → ×, `\circ` → °, etc.)
+   - Arrows, misc symbols (`\infty` → ∞, `\sum` → ∑, `\int` → ∫, etc.)
+   - Superscripts (`^{2}` → ², `^{circ}` → ᶜⁱʳᶜ fallback) and subscripts (`_{Pmp}` → ₚₘₚ)
+   - Font/no-op commands (`\text{C}` → C, `\mathrm{...}` → content, etc.)
+   - Escaped special chars (`\%` → %, `\&` → &, etc.)
+   - Integrated into `useExport.ts` for both inline and block LaTeX export.
+9. **DOCX Export Pipeline Rewrite**: Completely rewrote `src/hooks/useExport.ts` to use the correct Markdown→HTML→DOCX pipeline per `AGENTS.md`:
+   - **Old approach**: Custom regex-based markdown parser that manually converted markdown lines to `docx` elements. This produced poor results that didn't match the editor's rendering.
+   - **New approach**: Uses `markdown-it` with `@diplodoc/latex-extension` (KaTeX) to convert Markdown→HTML (same rendering as the editor), then parses the HTML using the browser's `DOMParser` and converts DOM elements to `docx` library objects.
+   - **Supported HTML elements**: headings (h1-h6), paragraphs, bold/italic/strikethrough, inline code, code blocks, links, tables (with header bold), ordered/unordered lists, blockquotes, horizontal rules, KaTeX inline/block math.
+   - **KaTeX math**: `.katex` and `.katex-display` elements are detected and rendered as italic `Cambria Math` in DOCX.
+   - **Removed `html-to-docx`**: Initially tried `html-to-docx` but it imports Node.js modules (`fs`, `http`, `crypto`) that don't work in the browser. Switched to DOM parsing + `docx` library which is browser-native.
+   - **Removed `latexToUnicode.ts` integration**: No longer needed since KaTeX renders LaTeX to HTML directly. The utility file is kept for potential future use.
+10. **LaTeX Export Fix — `.yfm-latex` Placeholder Handling**: The `@diplodoc/latex-extension` with `bundle: false` does not render KaTeX to HTML directly. Instead, it generates placeholder elements with URL-encoded LaTeX source in `data-content` attributes:
+    - Inline: `<span class="yfm-latex" data-content="...URL-encoded LaTeX..."></span>`
+    - Block: `<p class="yfm-latex" data-content="...URL-encoded LaTeX..."></p>`
+    - These elements are **empty** — KaTeX runtime renders them on the client side. The initial implementation tried to read `el.textContent` which returned empty strings.
+    - **Fix**: Added detection of `.yfm-latex` elements with `data-content` attribute in both `parseInlineElements()` and `htmlToDocxChildren()`. The LaTeX source is decoded via `decodeURIComponent()` and converted to Unicode via `latexToUnicode()`.
+    - Re-integrated `latexToUnicode` from `src/utils/latexToUnicode.ts` into `useExport.ts`.
+11. **Verification**: `npm run build` completed successfully after all changes.
+12. **latexToUnicode — Superscript/Subscript with LaTeX Commands Fix**: `^{\circ}` was incorrectly trying to convert literal characters `c,i,r,c` to Unicode superscript instead of first resolving `\circ` → `°`. Fixed by recursively processing braced content through `latexToUnicode()` before applying superscript/subscript conversion. Key changes to `src/utils/latexToUnicode.ts`:
+    - `^{\circ}` now resolves to `°` (not failed superscript of `circ`)
+    - `_{\text{Pmp}}` now resolves to `ₚₘₚ` (not literal subscript of `\text{Pmp}`)
+    - Added `\frac`, `\dfrac`, `\tfrac` handling: `\frac{a}{b}` → `a/b`
+    - Added `\overline`, `\bar`, `\hat`, `\tilde`, `\vec`, `\dot`, `\ddot` handling (output content only)
+    - Added `\left`, `\right`, `\big`, `\Big`, `\bigg`, `\Bigg`, `\limits`, `\nolimits` (skipped as delimiters)
+    - Extended superscript map with full Latin alphabet (a-z, A-Z) and common symbols (°, ′, ″)
+    - Skip standalone braces `{` `}` that are grouping delimiters
+13. **HTML Tag Coverage in useExport.ts**: Comprehensive review and fix of all handled HTML elements:
+    - **Inline**: `strong`/`b`, `em`/`i`, `u` (underline — new), `s`/`del`, `mark` (highlight — new), `code`, `a`, `sub`, `sup`, `br` (line break — new), `img` (alt text — new), `span` (generic recurse)
+    - **Block**: `h1-h6`, `p`, `table`, `ul`, `ol`, `blockquote`, `pre`, `hr`, `dl`/`dt`/`dd` (definition lists — new), `details`/`summary` (YFM cuts — new), `figure`/`figcaption` (new), `div`/`section` (generic recurse)
+    - **Nested formatting**: `parseInlineElements()` now accepts `inherited` parameter for proper nesting (e.g., `**bold *italic***` preserves both bold and italic)
+    - **Blockquote**: Now recurses into inner children (paragraphs, lists) instead of flattening
+    - **Code blocks**: Multi-line code split into separate paragraphs for proper formatting
+14. **Verification**: `npm run build` completed successfully after all changes.
+15. **DOCX Export — Line Spacing & Typography**: Added proper line spacing and typography settings for professional DOCX output:
+    - **Default font**: Calibri 11pt via `styles.default.document` in `Document` constructor
+    - **Page margins**: 1 inch (1440 twips) on all sides
+    - **Spacing constants** (in twips, 1pt = 20 twips):
+      - `PARAGRAPH`: 1.15 line spacing (276 AUTO), 8pt after (160 twips)
+      - `H1-H6`: 1.15 line spacing, varying before (24-48pt) and after (4-10pt)
+      - `LIST`: 1.15 line spacing, 4pt after
+      - `QUOTE`: 1.15 line spacing, 4pt after
+      - `CODE`: 1.0 line spacing (240 AUTO), no extra after
+      - `MATH`: 1.15 line spacing, 12pt before & after
+      - `TABLE_CELL`: 1.0 line spacing, 2pt after
+    - Applied `spacing` property to all `Paragraph` creations in `htmlToDocxChildren()`
+    - Imported `LineRuleType` from `docx` for proper `AUTO` line rule specification
+16. **Verification**: `npm run build` completed successfully after all changes.
+
+## Phase 22: Release v1.0.4
+1. **Version Bump**:
+    *   Bumped version from `1.0.3` to `1.0.4` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2. **Documentation Update**:
+    *   Updated the direct download links in `README.md` to point to the new `v1.0.4` assets.

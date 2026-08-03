@@ -9,3 +9,10 @@ body {
 #root {
   height: 100%;
 }
+
+.error-boundary {
+  padding: 20px;
+  color: var(--g-color-text-danger, red);
+  background-color: var(--g-color-base-background, #fff);
+  height: 100vh;
+}
