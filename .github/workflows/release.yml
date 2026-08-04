@@ -52,6 +52,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "GravityMD ${{ github.ref_name }}"
           releaseBody: "Automated release of GravityMD ${{ github.ref_name }}. Choose the installer for your platform below."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
