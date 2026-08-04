@@ -331,3 +331,9 @@ This document outlines the step-by-step process of building a standalone Windows
     *   Bumped version from `1.0.3` to `1.0.4` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
 2. **Documentation Update**:
     *   Updated the direct download links in `README.md` to point to the new `v1.0.4` assets.
+3. **Release Workflow Fix**:
+    *   **Problem**: v1.0.4 tag pushed successfully, GitHub Actions workflow completed, but no release appeared on the Releases page.
+    *   **Root Cause**: `.github/workflows/release.yml` had `releaseDraft: true` — `tauri-action` created releases as drafts (invisible to public).
+    *   **Fix**: Changed `releaseDraft: true` → `releaseDraft: false` in `release.yml` line 55.
+    *   Committed fix (`9153cc5`), pushed to `master`.
+    *   Deleted remote tag `v1.0.4`, deleted local tag, recreated on new commit, pushed — triggered new workflow run that will create a publicly visible release.
