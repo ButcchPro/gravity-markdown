@@ -13,7 +13,7 @@ interface EditorWrapperProps {
 
 export function EditorWrapper({ initialContent, onSave }: EditorWrapperProps) {
   const editor = useMarkdownEditor({
-    md: { html: false },
+    md: { html: true },
     initial: { markup: initialContent },
     wysiwygConfig: {
       extensions: (builder) => {

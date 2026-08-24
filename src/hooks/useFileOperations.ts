@@ -53,20 +53,23 @@ export function useFileOperations() {
     }
   }, [loadContent]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<boolean> => {
     try {
       if (currentFile) {
         await safeWriteTextFile(currentFile, currentValue);
         setContent(currentValue);
         notify('Saved!', 'success');
+        return true;
       }
+      return false;
     } catch (e) {
       console.error(e);
       notify('Error saving file', 'danger');
+      return false;
     }
   }, [currentFile, currentValue]);
 
-  const handleSaveAs = useCallback(async () => {
+  const handleSaveAs = useCallback(async (): Promise<boolean> => {
     try {
       const file = await save({
         filters: [{ name: 'Markdown', extensions: ['md'] }],
@@ -76,10 +79,13 @@ export function useFileOperations() {
         setCurrentFile(file);
         setContent(currentValue);
         notify('Saved!', 'success');
+        return true;
       }
+      return false;
     } catch (e) {
       console.error(e);
       notify('Error saving file', 'danger');
+      return false;
     }
   }, [currentValue]);
 

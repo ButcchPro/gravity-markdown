@@ -337,3 +337,32 @@ This document outlines the step-by-step process of building a standalone Windows
     *   **Fix**: Changed `releaseDraft: true` → `releaseDraft: false` in `release.yml` line 55.
     *   Committed fix (`9153cc5`), pushed to `master`.
     *   Deleted remote tag `v1.0.4`, deleted local tag, recreated on new commit, pushed — triggered new workflow run that will create a publicly visible release.
+
+## Phase 23: Unsaved Changes Dialog on Window Close
+1. **Problem**: Closing the app window (X button, Alt+F4) with unsaved editor changes silently discarded all edits without any warning.
+2. **Design Decision**: Used a custom Gravity UI `Dialog` with three buttons (Save / Don't Save / Cancel) instead of the native `ask()` dialog from `@tauri-apps/plugin-dialog` — the native dialog only supports two buttons and doesn't match the app's theming (three themes).
+3. **Close Interception** (`src/App.tsx`):
+    *   Registered `getCurrentWindow().onCloseRequested()` handler once on mount.
+    *   Clean state (`dirty === false`) — close proceeds normally.
+    *   Dirty state — `event.preventDefault()` blocks the close and shows `UnsavedChangesDialog`.
+    *   `dirtyRef` keeps the latest dirty value readable inside the stable handler closure (avoids stale closures and re-registration).
+4. **Dialog Component** (`src/components/UnsavedChangesDialog.tsx`):
+    *   "Save" — saves to the current path (`handleSave`) or opens Save As dialog if no file is associated; window is destroyed only on successful save; on failure/cancel the dialog re-opens so no data is lost.
+    *   "Don't Save" — discards changes and destroys the window immediately.
+    *   "Cancel" (also Escape/overlay click via `onClose`) — aborts closing, returns to editing.
+5. **Return Value Contract Change** (`src/hooks/useFileOperations.ts`): `handleSave` and `handleSaveAs` now return `Promise<boolean>` — `true` when the file was actually written, enabling the save-then-close flow.
+6. **Permissions** (`src-tauri/capabilities/default.json`): Added `core:window:allow-destroy` for programmatic `destroy()` calls from the frontend.
+7. **Styling** (`src/App.scss`): Added `.unsaved-dialog-body` consistent with the existing `.about-content` dialog pattern.
+8. **Verification**: `npm run build` completed successfully (exit code 0). Permission identifier validated against Tauri's generated schema (`core:window:allow-destroy` exists in `gen/schemas/desktop-schema.json`).
+
+## Phase 24: Upstream Dependency Update (August 2026)
+1. **Upstream Check**: Compared installed versions against npm registry and GitHub releases of `gravity-ui/markdown-editor`. Five new upstream releases were published since the project's install (15.41.0 → 15.46.0), plus updates across the whole Gravity UI / Diplodoc ecosystem.
+2. **Updated Packages** (`npm install ...@latest --legacy-peer-deps`):
+    *   Gravity UI: `@gravity-ui/markdown-editor` 15.41.0→15.46.0, `markdown-editor-latex-extension` 0.1.0→0.1.1, `@gravity-ui/uikit` 7.42.0→7.48.1, `@gravity-ui/icons` 2.18.0→2.21.0, `@gravity-ui/navigation` 6.0.0→6.4.1, `@gravity-ui/components` 4.22.0→4.24.0.
+    *   Diplodoc: `latex-extension` 2.0.0→2.0.2, `mermaid-extension` 2.1.3→2.2.3, `tabs-extension` 3.10.1→3.10.7, `transform` 4.76.0→4.77.12.
+    *   Runtime: `react`/`react-dom` 19.2.7→19.2.8, `mammoth` 1.12.1.
+    *   Dev: `vite` 8.0.16→8.2.2, `sass`, `eslint` 10.9.0, `typescript-eslint`, `globals`, `@vitejs/plugin-react` 6.1.0, `@tauri-apps/cli` 2.11.4, Tauri plugin-dialog/store patches, `@types/*`.
+3. **Notable Upstream Changes** (15.42–15.46): Mermaid WYSIWYG performance fix and gallery data-URI freeze fix (15.41.1); markdown table insertion from plain text (15.46); link creation/editing UI rework; YfmTable background inheritance fixes; CodeBlock fence-sequence preservation; `changePreviewVisible` API method; builder-method refactoring for node registration. No breaking changes within major v15.
+4. **Peer Dependency Constraints Re-Confirmed**: Latest editor still requires `katex ^0.16.9` and `markdown-it ^13.0.0` — AGENTS.md rule #3 remains valid; katex 0.18 / markdown-it 15 / typescript 7 upgrades remain blocked by upstream.
+5. **Transitive Dependency Check** (AGENTS.md rule #9): Verified all peer deps of the new editor version are satisfied — no new packages required beyond those already installed.
+6. **Verification**: `npm run build` (tsc + vite 8.2.2) passed with zero TypeScript errors; full `npx tauri build --no-bundle` completed successfully — `gravitymd.exe` rebuilt against the updated stack.
