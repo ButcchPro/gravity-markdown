@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:utils": "node --experimental-strip-types tests/utils.test.ts",
     "preview": "vite preview",
     "tauri": "tauri"
   },

@@ -526,7 +526,9 @@ export function useExport({ currentValue }: UseExportParams) {
           sections: [{
             properties: {
               page: {
-                margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }, // 1 inch margins
+                // GOST-style margins in twips (1 cm = 567 twips):
+                // left 2.5 cm, right 2 cm, top 2 cm, bottom 2 cm.
+                margin: { top: 1134, right: 1134, bottom: 1134, left: 1417 }, // cm: 2 / 2 / 2 / 2.5
               },
             },
             children,

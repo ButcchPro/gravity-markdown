@@ -97,7 +97,9 @@ export default function App() {
   // Refs keep the handler stable so onCloseRequested is registered only once,
   // while always reading the latest state via refs (avoiding stale closures).
   const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
   const fileName = currentFile ? getFileName(currentFile) : 'Untitled';
 
   useEffect(() => {
@@ -111,7 +113,6 @@ export default function App() {
     return () => {
       unlisten.then((fn) => fn());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCloseConfirmed = useCallback(async () => {
