@@ -26,13 +26,13 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**: 
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.4/gravitymd_1.0.4_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.4/gravitymd_1.0.4_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.4_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.4_x64-setup.exe)
 *   💻 **Windows (ARM64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.4/gravitymd_1.0.4_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.4/gravitymd_1.0.4_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.4_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.4_arm64-setup.exe)
 *   🍎 **macOS (Universal)**:
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.4/gravitymd_1.0.4_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.4_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
 
@@ -140,7 +140,7 @@ npx tauri build --no-bundle
 
 ## 📄 License & Third-Party Credits
 
-This project is licensed under the **MIT License** - see the [LICENSE](file:///D:/AI%20Agent/Markdown/gravity-markdown/LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ### Third-Party Credits & Licenses
 

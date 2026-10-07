@@ -1,10 +1,23 @@
 import { useCallback } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile } from '@tauri-apps/plugin-fs';
-import mammoth from 'mammoth';
-import TurndownService from 'turndown';
-import * as XLSX from 'xlsx';
 import { notify } from '../utils/notify';
+import { runWorker } from '../utils/worker';
+
+// Conversions run in one-shot Web Workers so big files never freeze the UI.
+const createDocxWorker = () =>
+  new Worker(new URL('../workers/docxImport.worker.ts', import.meta.url), { type: 'module' });
+const createXlsxWorker = () =>
+  new Worker(new URL('../workers/xlsxImport.worker.ts', import.meta.url), { type: 'module' });
+
+interface DocxImportResult {
+  markdown: string;
+  warnings: string[];
+}
+
+interface XlsxImportResult {
+  table: string;
+}
 
 interface UseImportParams {
   currentValue: string;
@@ -21,13 +34,15 @@ export function useImport({ currentValue, currentFile, loadContent }: UseImportP
       });
       if (file && typeof file === 'string') {
         const data = await readFile(file);
-        const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        const turndownService = new TurndownService();
-        const markdown = turndownService.turndown(result.value);
+        // mammoth needs a clean ArrayBuffer: slice off TypeedArray offset metadata.
+        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        const { markdown, warnings } = await runWorker<{ buffer: ArrayBuffer }, DocxImportResult>(
+          createDocxWorker,
+          { buffer },
+        );
 
-        if (result.messages.length > 0) {
-          console.warn('DOCX import warnings:', result.messages.map(m => m.message));
+        if (warnings.length > 0) {
+          console.warn('DOCX import warnings:', warnings);
         }
 
         if (!markdown.trim()) {
@@ -40,7 +55,7 @@ export function useImport({ currentValue, currentFile, loadContent }: UseImportP
       }
     } catch (e) {
       console.error(e);
-      notify('Error importing DOCX', 'danger');
+      notify(`Error importing DOCX: ${e instanceof Error ? e.message : String(e)}`, 'danger');
     }
   }, [loadContent]);
 
@@ -52,18 +67,14 @@ export function useImport({ currentValue, currentFile, loadContent }: UseImportP
       });
       if (file && typeof file === 'string') {
         const data = await readFile(file);
-        const wb = XLSX.read(data, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const aoa = XLSX.utils.sheet_to_json<(string | number | null | undefined)[]>(ws, { header: 1 });
-        const fmt = (cell: string | number | null | undefined) => String(cell ?? '');
+        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        const { table } = await runWorker<{ data: ArrayBuffer }, XlsxImportResult>(
+          createXlsxWorker,
+          { data: buffer },
+        );
 
-        if (aoa.length > 0) {
-          let mdTable = '\n\n| ' + aoa[0].map(fmt).join(' | ') + ' |\n';
-          mdTable += '| ' + aoa[0].map(() => '---').join(' | ') + ' |\n';
-          for (let i = 1; i < aoa.length; i++) {
-            mdTable += '| ' + aoa[i].map(fmt).join(' | ') + ' |\n';
-          }
-          loadContent(currentValue + mdTable, currentFile);
+        if (table) {
+          loadContent(currentValue + table, currentFile);
           notify('Imported Spreadsheet', 'success');
         } else {
           notify('Spreadsheet is empty', 'warning');
@@ -71,7 +82,7 @@ export function useImport({ currentValue, currentFile, loadContent }: UseImportP
       }
     } catch (e) {
       console.error(e);
-      notify('Error importing Spreadsheet', 'danger');
+      notify(`Error importing Spreadsheet: ${e instanceof Error ? e.message : String(e)}`, 'danger');
     }
   }, [currentValue, currentFile, loadContent]);
 

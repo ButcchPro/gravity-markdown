@@ -5,10 +5,12 @@ import {
   AlignmentType, Table, TableRow, TableCell, BorderStyle,
   ExternalHyperlink, WidthType, LevelFormat,
   LineRuleType,
+  type IParagraphOptions,
 } from 'docx';
 import { safeWriteBinaryFile } from '../utils/ipc';
 import { notify } from '../utils/notify';
 import { latexToUnicode } from '../utils/latexToUnicode';
+import { runWorker } from '../utils/worker';
 
 // ── Spacing constants (in twips: 1pt = 20 twips) ──
 const SPACING = {
@@ -49,8 +51,7 @@ function parseHTML(html: string): HTMLElement {
 /**
  * Extract inline elements from a DOM node, preserving formatting as TextRun options.
  * Supports nested formatting (e.g., bold inside italic).
- */
-function parseInlineElements(node: Node, inherited: { bold?: boolean; italics?: boolean; strike?: boolean; underline?: boolean } = {}): (TextRun | ExternalHyperlink)[] {
+ */function parseInlineElements(node: Node, inherited: { bold?: boolean; italics?: boolean; strike?: boolean; underline?: boolean } = {}): (TextRun | ExternalHyperlink)[] {
   const runs: (TextRun | ExternalHyperlink)[] = [];
 
   for (const child of Array.from(node.childNodes)) {
@@ -172,17 +173,71 @@ function parseInlineElements(node: Node, inherited: { bold?: boolean; italics?: 
   return runs;
 }
 
+/** List nesting limit: matches the numbering configuration defined below. */
+const MAX_LIST_LEVEL = 1;
+
+/**
+ * Converts a <ul>/<ol> element into docx paragraphs, preserving nested lists
+ * by flattening sublists into the numbered/bulleted items of the next level.
+ */
+function appendListItems(
+  el: HTMLElement,
+  ordered: boolean,
+  level: number,
+  out: (Paragraph | Table)[],
+): void {
+  const listMarker = ordered
+    ? (lvl: number) => ({ numbering: { reference: 'default-numbering', level: lvl } })
+    : (lvl: number) => ({ bullet: { level: lvl } });
+
+  for (const li of Array.from(el.querySelectorAll(':scope > li'))) {
+    // Inline part = the li without its direct nested sublists. Cloning keeps
+    // the extracted markup, so nested content is not duplicated or lost.
+    const inlinePart = li.cloneNode(true) as HTMLElement;
+    for (const nested of inlinePart.querySelectorAll(':scope > ul, :scope > ol')) {
+      nested.remove();
+    }
+    out.push(new Paragraph({
+      children: parseInlineElements(inlinePart),
+      ...listMarker(Math.min(level, MAX_LIST_LEVEL)),
+      spacing: SPACING.LIST,
+    }));
+    // Direct nested sublists move one level deeper (content is preserved).
+    for (const sublist of Array.from(li.children)) {
+      if (sublist.tagName === 'UL' || sublist.tagName === 'OL') {
+        appendListItems(sublist as HTMLElement, sublist.tagName === 'OL', level + 1, out);
+      }
+    }
+  }
+}
+
 /**
  * Convert HTML elements to docx Paragraph/Table children.
  */
-function htmlToDocxChildren(container: Node): (Paragraph | Table)[] {
+function htmlToDocxChildren(
+  container: Node,
+  context: { quote?: boolean } = {},
+): (Paragraph | Table)[] {
   const children: (Paragraph | Table)[] = [];
+
+  // Blockquote styling is applied while children are created instead of
+  // copying finished paragraph instances (docx options cannot be cloned
+  // reliably via object spread).
+  const withQuote = (opts: IParagraphOptions): IParagraphOptions =>
+    context.quote
+      ? {
+          ...opts,
+          indent: { left: 720 },
+          border: { left: { style: BorderStyle.SINGLE, size: 6, space: 10, color: 'cccccc' } },
+          spacing: SPACING.QUOTE,
+        }
+      : opts;
 
   for (const child of Array.from(container.childNodes)) {
     if (child.nodeType === Node.TEXT_NODE) {
       const text = child.textContent?.trim() ?? '';
       if (text) {
-        children.push(new Paragraph({ children: [new TextRun(text)], spacing: SPACING.PARAGRAPH }));
+        children.push(new Paragraph(withQuote({ children: [new TextRun(text)], spacing: SPACING.PARAGRAPH })));
       }
       continue;
     }
@@ -228,7 +283,7 @@ function htmlToDocxChildren(container: Node): (Paragraph | Table)[] {
           spacing: SPACING.MATH,
         }));
       } else {
-        children.push(new Paragraph({ children: parseInlineElements(el), spacing: SPACING.PARAGRAPH }));
+        children.push(new Paragraph(withQuote({ children: parseInlineElements(el), spacing: SPACING.PARAGRAPH })));
       }
       continue;
     }
@@ -243,92 +298,88 @@ function htmlToDocxChildren(container: Node): (Paragraph | Table)[] {
       continue;
     }
 
-    // Tables
+    // Tables — grid-based conversion preserving col/rowspan (YFM tables
+    // merge cells via spans; standard markdown tables have none).
     if (tag === 'table') {
-      const trs = el.querySelectorAll('tr');
+      interface CellSpec {
+        el: HTMLTableCellElement;
+        col: number;
+        colSpan: number;
+        rowSpan: number;
+        header: boolean;
+      }
+      const trs = Array.from(el.querySelectorAll('tr'));
       if (trs.length === 0) continue;
 
-      const rows = Array.from(trs).map(tr => {
-        const cells = Array.from(tr.querySelectorAll('th, td'));
-        return cells.map(cell => {
-          const isHeader = cell.tagName.toLowerCase() === 'th';
-          const cellRuns = isHeader
-            ? [new TextRun({ text: cell.textContent?.trim() ?? '', bold: true })]
-            : parseInlineElements(cell);
-          return new TableCell({
-            children: [new Paragraph({ children: cellRuns, spacing: SPACING.TABLE_CELL })],
-            width: { size: 2000, type: WidthType.DXA },
-          });
+      // Reserve a coordinate grid: walk each row's cells, skipping slots
+      // already occupied by spans from earlier rows.
+      const occupied = new Set<string>();
+      const specsRows: CellSpec[][] = trs.map((tr, rowIndex) => {
+        const domCells = Array.from(tr.children).filter(
+          (c) => c.tagName === 'TH' || c.tagName === 'TD',
+        ) as HTMLTableCellElement[];
+        let col = 0;
+        const specs = domCells.map((cell): CellSpec => {
+          while (occupied.has(`${rowIndex}:${col}`)) col += 1;
+          const colSpan = Math.max(1, Math.floor(cell.colSpan) || 1);
+          const rowSpan = Math.max(1, Math.floor(cell.rowSpan) || 1);
+          for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+            for (let c = col; c < col + colSpan; c += 1) occupied.add(`${r}:${c}`);
+          }
+          const spec: CellSpec = { el: cell, col, colSpan, rowSpan, header: cell.tagName.toLowerCase() === 'th' };
+          col += colSpan;
+          return spec;
         });
+        return specs;
       });
 
-      if (rows.length > 0 && rows[0].length > 0) {
-        const colCount = Math.max(...rows.map(r => r.length));
-        children.push(new Table({
-          rows: rows.map(cells => new TableRow({
-            children: Array.from({ length: colCount }, (_, ci) =>
-              cells[ci] ?? new TableCell({ children: [new Paragraph('')] })
-            ),
-          })),
-          width: { size: 9000, type: WidthType.DXA },
-        }));
+      const colCount = specsRows.reduce((max, specs) => Math.max(max, ...specs.map((s) => s.col + s.colSpan)), 0);
+      if (colCount > 0) {
+        const colWidth = Math.floor(9000 / colCount);
+        const docxRows = specsRows.map((specs, rowIndex) => {
+          const cells = specs.map((spec) => {
+            const cellRuns = spec.header
+              ? [new TextRun({ text: spec.el.textContent?.trim() ?? '', bold: true })]
+              : parseInlineElements(spec.el);
+            // Total table width 9000 DXA split equally per grid column.
+            return new TableCell({
+              children: [new Paragraph({ children: cellRuns, spacing: SPACING.TABLE_CELL })],
+              width: { size: colWidth * spec.colSpan, type: WidthType.DXA },
+              columnSpan: spec.colSpan > 1 ? spec.colSpan : undefined,
+              rowSpan: spec.rowSpan > 1 ? spec.rowSpan : undefined,
+            });
+          });
+          // Pad ragged rows (rows shorter than the widest one).
+          let covered = 0;
+          for (let c = 0; c < colCount; c += 1) {
+            if (occupied.has(`${rowIndex}:${c}`)) covered += 1;
+          }
+          for (let c = covered; c < colCount; c += 1) {
+            cells.push(new TableCell({ children: [new Paragraph('')] }));
+          }
+          return new TableRow({ children: cells });
+        });
+        children.push(new Table({ rows: docxRows, width: { size: 9000, type: WidthType.DXA } }));
       }
       continue;
     }
 
-    // Unordered lists
+    // Unordered lists — nested sublists move one level deeper.
     if (tag === 'ul') {
-      for (const li of Array.from(el.querySelectorAll(':scope > li'))) {
-        // Check if li contains block elements (sublists, paragraphs)
-        const hasBlocks = li.querySelector('ul, ol, p, pre, blockquote');
-        if (hasBlocks) {
-          // Process inline content as bullet, then recurse for blocks
-          const inlineContent = parseInlineElements(li, {});
-          // Filter out text from child block elements
-          children.push(new Paragraph({
-            children: inlineContent,
-            bullet: { level: 0 },
-            spacing: SPACING.LIST,
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: parseInlineElements(li),
-            bullet: { level: 0 },
-            spacing: SPACING.LIST,
-          }));
-        }
-      }
+      appendListItems(el as HTMLElement, false, 0, children);
       continue;
     }
 
-    // Ordered lists
+    // Ordered lists — nested sublists move one level deeper.
     if (tag === 'ol') {
-      for (const li of Array.from(el.querySelectorAll(':scope > li'))) {
-        children.push(new Paragraph({
-          children: parseInlineElements(li),
-          numbering: { reference: 'default-numbering', level: 0 },
-          spacing: SPACING.LIST,
-        }));
-      }
+      appendListItems(el as HTMLElement, true, 0, children);
       continue;
     }
 
-    // Blockquotes — recurse to handle nested paragraphs, lists, etc.
+    // Blockquotes — recurse with quote context so every paragraph gets the
+    // indent and left border at creation time (instance spread is unsafe).
     if (tag === 'blockquote') {
-      const innerChildren = htmlToDocxChildren(el);
-      for (const innerChild of innerChildren) {
-        if (innerChild instanceof Paragraph) {
-          // Add indent and left border to each paragraph in the blockquote
-          children.push(new Paragraph({
-            ...innerChild,
-            indent: { left: 720 },
-            border: { left: { style: BorderStyle.SINGLE, size: 6, space: 10, color: 'cccccc' } },
-            spacing: SPACING.QUOTE,
-          }));
-        } else {
-          children.push(innerChild);
-        }
-      }
+      children.push(...htmlToDocxChildren(el, { quote: true }));
       continue;
     }
 
@@ -387,7 +438,7 @@ function htmlToDocxChildren(container: Node): (Paragraph | Table)[] {
         }));
       }
       // Process rest of details content
-      const innerChildren = htmlToDocxChildren(el);
+      const innerChildren = htmlToDocxChildren(el, context);
       children.push(...innerChildren);
       continue;
     }
@@ -420,7 +471,7 @@ function htmlToDocxChildren(container: Node): (Paragraph | Table)[] {
 
     // Generic block elements (div, section, article, main, etc.): recurse
     if (el.childNodes.length > 0) {
-      children.push(...htmlToDocxChildren(el));
+      children.push(...htmlToDocxChildren(el, context));
     }
   }
 
@@ -434,14 +485,15 @@ export function useExport({ currentValue }: UseExportParams) {
         filters: [{ name: 'Word Document', extensions: ['docx'] }],
       });
       if (file && typeof file === 'string') {
-        // Step 1: Markdown → HTML using markdown-it with LaTeX/KaTeX rendering
-        const MarkdownIt = (await import('markdown-it')).default;
-        const { transform } = await import('@diplodoc/latex-extension');
-
-        const md = new MarkdownIt({ html: true, linkify: true, breaks: true });
-        md.use(transform({ bundle: false, validate: false }), { output: '' });
-
-        const htmlBody = md.render(currentValue);
+        // Step 1: Markdown → HTML in a Web Worker (same pipeline as the editor:
+        // markdown-it + LaTeX + YFM tables). DOMParser/Blob are unavailable in
+        // workers, so the DOM → docx steps keep running on the main thread.
+        const renderWorker = () =>
+          new Worker(new URL('../workers/mdRender.worker.ts', import.meta.url), { type: 'module' });
+        const { html: htmlBody } = await runWorker<{ markdown: string }, { html: string }>(
+          renderWorker,
+          { markdown: currentValue },
+        );
 
         // Step 2: Parse HTML → docx elements
         const fragment = parseHTML(htmlBody);
@@ -465,7 +517,10 @@ export function useExport({ currentValue }: UseExportParams) {
           numbering: {
             config: [{
               reference: 'default-numbering',
-              levels: [{ level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.START }],
+              levels: [
+                { level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.START },
+                { level: 1, format: LevelFormat.DECIMAL, text: '%2.', alignment: AlignmentType.START },
+              ],
             }],
           },
           sections: [{

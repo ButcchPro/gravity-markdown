@@ -1,17 +1,30 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useMarkdownEditor, MarkdownEditorView } from '@gravity-ui/markdown-editor';
 import { LatexExtension } from '@gravity-ui/markdown-editor-latex-extension';
 import { Mermaid } from '@gravity-ui/markdown-editor/extensions/additional/Mermaid/index.js';
 import { Plugin } from 'prosemirror-state';
 import { Slice } from 'prosemirror-model';
 import TurndownService from 'turndown';
+import { rowsToPipeTable } from '../utils/pipeTable';
+import { sanitizeYfmTables, type YfmConversionResult } from '../utils/yfmTable';
+
+export interface EditorHandle {
+  /**
+   * Reads the freshest editor markup and replaces all losslessly
+   * convertible YFM tables (#| ... |#) with standard pipe tables,
+   * keeping the editor content in sync with the returned value so the
+   * dirty flag matches what the caller is about to persist.
+   */
+  sanitizeForSave: () => YfmConversionResult;
+}
 
 interface EditorWrapperProps {
   initialContent: string;
   onSave: (content: string) => void;
+  ref?: Ref<EditorHandle>;
 }
 
-export function EditorWrapper({ initialContent, onSave }: EditorWrapperProps) {
+export function EditorWrapper({ initialContent, onSave, ref }: EditorWrapperProps) {
   const editor = useMarkdownEditor({
     md: { html: true },
     initial: { markup: initialContent },
@@ -35,9 +48,8 @@ export function EditorWrapper({ initialContent, onSave }: EditorWrapperProps) {
               const rows = Array.from(table.querySelectorAll('tr'));
               if (rows.length === 0) return '';
 
-              let markdown = '\n';
               let colCount = 0;
-
+              const rowsData: string[][] = [];
               rows.forEach((row, rowIndex) => {
                 const cells = Array.from(row.querySelectorAll('th, td'));
                 if (cells.length === 0) return;
@@ -56,16 +68,12 @@ export function EditorWrapper({ initialContent, onSave }: EditorWrapperProps) {
                 if (cellTexts.length > colCount && rowIndex === 0) {
                   colCount = cellTexts.length;
                 }
-
-                markdown += '| ' + cellTexts.join(' | ') + ' |\n';
-
-                if (rowIndex === 0) {
-                  const separator = Array.from({ length: colCount }, () => '---').join(' | ');
-                  markdown += '| ' + separator + ' |\n';
-                }
+                rowsData.push(cellTexts);
               });
 
-              return markdown + '\n';
+              if (rowsData.length === 0 || rowsData[0].length === 0) return '';
+              const [header, ...data] = rowsData;
+              return '\n' + rowsToPipeTable(header, data) + '\n';
             }
           });
 
@@ -155,6 +163,24 @@ export function EditorWrapper({ initialContent, onSave }: EditorWrapperProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [editor, debouncedSave]);
+
+  // The imperative handle exists so save flows (Save / Save As / close dialog)
+  // always read the freshest markup straight from the editor, not the
+  // debounced React state. Side effects (warnings about kept tables) belong
+  // to the save flow — this method only reports them in its result.
+  const sanitizeForSave = useCallback((): YfmConversionResult => {
+    const current = editor.getValue();
+    if (!current.includes('#|')) {
+      return { value: current, converted: 0, kept: 0 };
+    }
+    const sanitized = sanitizeYfmTables(current);
+    if (sanitized.converted > 0) {
+      editor.replace(sanitized.value); // keeps the editor in sync with the saved content
+    }
+    return sanitized;
+  }, [editor]);
+
+  useImperativeHandle(ref, () => ({ sanitizeForSave }), [sanitizeForSave]);
 
   return (
     <div className="editor-wrapper">

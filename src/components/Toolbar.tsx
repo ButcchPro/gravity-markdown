@@ -1,5 +1,5 @@
 import { Button, Text, Icon } from '@gravity-ui/uikit';
-import { FolderOpen, FloppyDisk, FileArrowUp, Moon, Sun, ArrowDownToSquare, ArrowUpFromSquare, CircleInfo, MagnifierMinus, MagnifierPlus } from '@gravity-ui/icons';
+import { FolderOpen, FloppyDisk, FileArrowUp, Moon, Sun, Palette, ArrowDownToSquare, ArrowUpFromSquare, CircleInfo, MagnifierMinus, MagnifierPlus } from '@gravity-ui/icons';
 import type { AppTheme } from '../hooks/useTheme';
 
 interface ToolbarProps {
@@ -87,7 +87,8 @@ export function Toolbar({
       <div className="toolbar-divider" />
 
       <Button onClick={onToggleTheme} view="flat" className="theme-toggle" title={theme}>
-        <Icon data={theme === 'dark' ? Sun : theme === 'light' ? Moon : Sun} />
+        {/* dark → Sun, light → Moon, solarized → Palette */}
+        <Icon data={theme === 'dark' ? Sun : theme === 'light' ? Moon : Palette} />
       </Button>
       <Button onClick={onAbout} view="flat" title="About" aria-label="About">
         <Icon data={CircleInfo} />
