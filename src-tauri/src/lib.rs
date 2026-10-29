@@ -43,6 +43,24 @@ fn is_text_extension(path: &PathBuf) -> bool {
         .unwrap_or(false)
 }
 
+/// Upper bound for a document read/write via IPC (32 MB) — the app is an
+/// editor for text documents and DOCX exports; anything larger is a mistake.
+const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
+
+/// Whitelist of writable file types per IPC channel:
+/// text saves go to markdown documents, binary writes go to DOCX exports.
+fn is_writable_extension(path: &PathBuf, binary: bool) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase());
+    match (binary, ext.as_deref()) {
+        (true, Some("docx")) => true,
+        (false, Some("md") | Some("txt") | Some("markdown")) => true,
+        _ => false,
+    }
+}
+
 #[tauri::command]
 fn get_initial_file(state: tauri::State<InitialFile>) -> Option<String> {
     state.0.lock().expect("InitialFile mutex poisoned").take()
@@ -54,22 +72,50 @@ async fn read_file_content(path: String) -> Result<String, AppError> {
     if !is_text_extension(&pb) {
         return Err(AppError::new("FS_UNSUPPORTED_EXTENSION", "Unsupported file type"));
     }
-    tokio::fs::read_to_string(&pb).await.map_err(map_io_error)
+    if tokio::fs::metadata(&pb)
+        .await
+        .map_err(map_io_error)?
+        .len() as usize > MAX_FILE_BYTES
+    {
+        return Err(AppError::new("FS_TOO_LARGE", "File exceeds 32 MB limit"));
+    }
+    // Invalid UTF-8 fails with InvalidData → FS_INVALID_DATA (map_io_error).
+    let content = tokio::fs::read_to_string(&pb).await.map_err(map_io_error)?;
+    // NUL byte = binary content disguised as a text document.
+    if content.contains('\0') {
+        return Err(AppError::new(
+            "FS_INVALID_DATA",
+            "Binary content in a text document",
+        ));
+    }
+    Ok(content)
 }
 
 #[tauri::command]
 async fn write_file_content(path: String, content: String) -> Result<(), AppError> {
     let pb = validate_path(&path)?;
+    if !is_writable_extension(&pb, false) {
+        return Err(AppError::new("FS_UNSUPPORTED_EXTENSION", "Writable type: md, txt, markdown"));
+    }
+    if content.len() > MAX_FILE_BYTES {
+        return Err(AppError::new("FS_TOO_LARGE", "Content exceeds 32 MB limit"));
+    }
     tokio::fs::write(&pb, content).await.map_err(map_io_error)
 }
 
 #[tauri::command]
 async fn write_file_binary(path: String, data: String) -> Result<(), AppError> {
     let pb = validate_path(&path)?;
+    if !is_writable_extension(&pb, true) {
+        return Err(AppError::new("FS_UNSUPPORTED_EXTENSION", "Writable type: docx"));
+    }
     use base64::Engine;
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(&data)
         .map_err(|e| AppError::new("FS_INVALID_BINARY", e.to_string()))?;
+    if bytes.len() > MAX_FILE_BYTES {
+        return Err(AppError::new("FS_TOO_LARGE", "Content exceeds 32 MB limit"));
+    }
     tokio::fs::write(&pb, bytes).await.map_err(map_io_error)
 }
 

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T00:20:00Z",
+  "title": "Design System: GravityMD",
+  "extensions": {
+    "colorMeta": {
+      "surface-background": {
+        "role": "neutral",
+        "displayName": "Paper Background",
+        "canonical": "var(--g-color-base-background)",
+        "tonalRamp": ["#121212", "#1c1c1c", "#2a2a2a", "#3a3a3a", "#6b6b6b", "#a5a5a5", "#d6d6d6", "#ffffff"]
+      },
+      "surface-chrome": {
+        "role": "neutral",
+        "displayName": "Instrument Chrome",
+        "canonical": "var(--g-color-base-generic)",
+        "tonalRamp": ["#141414", "#221d22", "#2d282d", "#383438", "#6a666a", "#a09ca0", "#d0ccd0", "#f5f3f5"]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Instrument Yellow",
+        "canonical": "var(--g-color-base-brand)",
+        "tonalRamp": ["#3d3200", "#6b5800", "#a08600", "#d4b200", "#ffdb4d", "#ffe580", "#fff0b3", "#fff9e0"]
+      },
+      "danger-strong": {
+        "role": "primary",
+        "displayName": "Dirty Red",
+        "canonical": "var(--g-color-text-danger-heavy)",
+        "tonalRamp": ["#3d070d", "#6b0a15", "#9c0d1e", "#c81a2e", "#e5325d", "#ff647f", "#ff9aab", "#ffd6de"]
+      }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Document prose; full editor width, 10 px paragraph rhythm." },
+      "headline": { "displayName": "Headline", "purpose": "Document H1 only; first block, no top margin." },
+      "title": { "displayName": "Title", "purpose": "H2 section heads." },
+      "label": { "displayName": "Label", "purpose": "Toolbar labels and Save state." },
+      "meta": { "displayName": "Meta", "purpose": "Status bar, zoom readout, version chip; tabular numerals." }
+    },
+    "shadows": [
+      {
+        "name": "toolbar-lift",
+        "value": "0 2px 6px rgba(0, 0, 0, 0.12)",
+        "purpose": "The one chrome shadow: separates the app toolbar from the document."
+      }
+    ],
+    "motion": [
+      {
+        "name": "thumb-ease",
+        "value": "transform 0.1s ease, background-color 0.1s ease",
+        "purpose": "Zoom slider thumb feedback only; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      { "name": "labels-collapse", "value": "1080px" },
+      { "name": "bar-tightens", "value": "860px" },
+      { "name": "window-min", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Flat Toolbar Button",
+      "kind": "button",
+      "refersTo": "button-flat",
+      "description": "Default toolbar control: quiet until hovered, pill shape, primary ink.",
+      "html": "<button class=\"ds-btn-flat\"><span class=\"ds-btn-icon\">▤</span><span>Open</span></button>",
+      "css": ".ds-btn-flat { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: none; border-radius: 999px; background: transparent; color: var(--g-color-text-primary); font: 500 13px/1.2 var(--g-font-family-sans, sans-serif); cursor: pointer; transition: background-color 0.12s ease; } .ds-btn-flat:hover { background: var(--g-color-base-generic-hover); } .ds-btn-flat:focus-visible { outline: 2px solid var(--g-color-text-primary); outline-offset: 1px; }"
+    },
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-action",
+      "description": "The single brand-filled action of a dialog (Update, Insert at cursor).",
+      "html": "<button class=\"ds-btn-action\">Update</button>",
+      "css": ".ds-btn-action { height: 28px; padding: 0 16px; border: none; border-radius: 999px; background: var(--g-color-base-brand, #ffdb4d); color: var(--g-color-text-primary, #1a1a1a); font: 500 13px/1.2 var(--g-font-family-sans, sans-serif); cursor: pointer; transition: background-color 0.12s ease; } .ds-btn-action:hover { background: var(--g-color-base-brand-hover, #f0c400); } .ds-btn-action:focus-visible { outline: 2px solid var(--g-color-text-primary); outline-offset: 1px; }"
+    },
+    {
+      "name": "Danger Outlined Action",
+      "kind": "button",
+      "refersTo": "button-danger-outlined",
+      "description": "Destructive confirmation (Replace document): outlined, never a filled red button.",
+      "html": "<button class=\"ds-btn-danger\">Replace document</button>",
+      "css": ".ds-btn-danger { height: 28px; padding: 0 16px; border-radius: 999px; background: transparent; border: 1px solid var(--g-color-line-generic, #d0c8a8); color: var(--g-color-text-danger-heavy, #b82820); font: 500 13px/1.2 var(--g-font-family-sans, sans-serif); cursor: pointer; } .ds-btn-danger:hover { background: var(--g-color-base-danger-light, #fbe4e0); } .ds-btn-danger:focus-visible { outline: 2px solid var(--g-color-text-primary); outline-offset: 1px; }"
+    },
+    {
+      "name": "Status Bar",
+      "kind": "custom",
+      "refersTo": "status-bar",
+      "description": "28 px identity strip: file name and path, save state with dot, word count and mode.",
+      "html": "<footer class=\"ds-status\"><span class=\"ds-status-file\"><b>Q3 Release Notes.md</b><span class=\"ds-status-path\">~/Notes</span></span><span class=\"ds-status-state\"><i class=\"ds-dot\"></i>All changes saved</span><span class=\"ds-status-meta\">412 words · WYSIWYG</span></footer>",
+      "css": ".ds-status { display: flex; align-items: center; gap: 16px; height: 28px; padding: 0 12px; border-top: 1px solid var(--g-color-line-generic, #d0c8a8); background: var(--g-color-base-generic, #eee8d5); color: var(--g-color-text-complementary, #586e75); font: 400 12px/1 var(--g-font-family-sans, sans-serif); } .ds-status-file { display: flex; gap: 8px; min-width: 0; max-width: 46%; } .ds-status-file b { color: var(--g-color-text-primary, #073642); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-status-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-status-state { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; } .ds-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--g-color-base-positive-heavy, #859900); } .ds-status-meta { margin-left: auto; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Confirm Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Gravity UI dialog on the float surface: caption names the state, consequence names real files, footer orders actions by risk.",
+      "html": "<div class=\"ds-dialog\"><h2 class=\"ds-dialog-caption\">Replace document?</h2><p class=\"ds-dialog-body\">Opening “notes.md” replaces the current document. Unsaved changes in “Untitled” will be lost.</p><div class=\"ds-dialog-footer\"><button class=\"ds-btn-danger\">Replace document</button><button class=\"ds-btn-flat\">Cancel</button></div></div>",
+      "css": ".ds-dialog { width: 340px; padding: 20px; border-radius: 8px; background: var(--g-color-base-float, #fdf6e3); color: var(--g-color-text-primary, #073642); font: 400 15px/1.4 var(--g-font-family-sans, sans-serif); } .ds-dialog-caption { margin: 0 0 12px; font-size: 17px; font-weight: 600; } .ds-dialog-body { margin: 0 0 16px; color: var(--g-color-text-primary, #073642); } .ds-dialog-footer { display: flex; gap: 8px; align-items: center; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Paper Instrument",
+    "overview": "GravityMD is a writing instrument, not a document portal: the page is the work, the chrome is the instrument's body. Everything above and below the prose is deliberately quiet — one hairline-bordered toolbar, one 28 px identity strip — and the document column is the only place that carries weight. The system inherits its material from Gravity UI and its warmth from the Solarized paper.",
+    "keyCharacteristics": [
+      "Paper-first composition: one centred prose column, chrome at the edges.",
+      "Gravity UI geometry: pill controls, quiet flat surfaces, a single soft toolbar lift.",
+      "Three live themes (Dark / Light / Solarized) driven by the same token names.",
+      "Compact chrome (12–13 px, 28 px bars) against a 15 px / 1.45 body.",
+      "Semantic color only: brand for action, danger-strong for destructive state, positive/warning dots for status."
+    ],
+    "rules": [
+      { "name": "The Chrome Whisper Rule", "body": "Chrome never uses the brand accent. Accent appears only on the single primary action of the current dialog and on the caret; a toolbar with two yellow buttons has failed.", "section": "colors" },
+      { "name": "The No Pure Black Rule", "body": "Document text is --g-color-text-primary, never #000; the Solarized theme remaps it to ink on paper without touching component code.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "No second typeface is introduced for chrome or headings; when the hierarchy needs more contrast, use weight and space, not a new font.", "section": "typography" },
+      { "name": "The Tabular Instrument Rule", "body": "Every changing number (word count, zoom %, version) uses tabular-nums so counters do not jitter.", "section": "typography" },
+      { "name": "The Single Lift Rule", "body": "Only the app toolbar casts a shadow. Inner toolbars separate with a hairline, not with depth.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the document the only high-contrast surface: chrome stays on base-generic, prose on base-background.",
+      "Do express state with a dot plus text (\"Unsaved changes\"), never colour alone.",
+      "Do let the document use the full editor width.",
+      "Do use tabular numerals for any counter that changes.",
+      "Do keep destructive actions outlined and last-to-Cancel in the footer order."
+    ],
+    "donts": [
+      "Don't put the brand accent on chrome controls.",
+      "Don't add a second shadow or a card around the editing column.",
+      "Don't introduce a second typeface for headings or labels.",
+      "Don't show internal error codes (FS_*) as toast copy.",
+      "Don't hide essential toolbar actions below 860 px — collapse labels to icons."
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 [package]
 name = "gravitymd"
-version = "1.0.5"
+version = "1.0.6"
 description = "GravityMD — standalone desktop Markdown editor based on Gravity UI"
 authors = ["Andrey Obushev <AndreyOb@openskykft.com>", "OpenSky Kft."]
 license = "MIT"

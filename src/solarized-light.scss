@@ -11,8 +11,8 @@
   --g-color-base-simple-hover-solid: #eee8d5;
   --g-color-base-brand: #b58900;
   --g-color-base-brand-hover: #a07800;
-  --g-color-base-selection: #eee8d5;
-  --g-color-base-selection-hover: #e7ddb8;
+  --g-color-base-selection: rgba(38, 139, 210, 0.28); /* visible on paper & dark cells */
+  --g-color-base-selection-hover: rgba(38, 139, 210, 0.4);
   --g-color-base-info-light: #e0f0fa;
   --g-color-base-info-light-hover: #d0e4f5;
   --g-color-base-info-medium: #b8d8f0;
@@ -84,7 +84,7 @@
   --g-color-line-utility: #6c71c4;
   --g-color-line-misc: #839496;
   --g-color-text-primary: #073642;
-  --g-color-text-complementary: #586e75;
+  --g-color-text-complementary: #4d6169; /* darkened for AA 4.5:1 on chrome surfaces */
   --g-color-text-secondary: #657b83;
   --g-color-text-hint: #93a1a1;
   --g-color-text-info: #268bd2;

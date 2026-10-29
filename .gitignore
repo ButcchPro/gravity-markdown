@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Design-pass evidence screenshots (local only)
+impeccable-shots/

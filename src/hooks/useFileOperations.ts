@@ -3,8 +3,9 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { safeReadTextFile, safeWriteTextFile } from '../utils/ipc';
 import { getFileName, isSupportedFile, SUPPORTED_EXTENSIONS } from '../utils/path';
 import { notify } from '../utils/notify';
-import { formatIpcError, invokeReadFileContent } from '../types/ipc';
+import { describeIpcError, invokeReadFileContent } from '../types/ipc';
 import type { YfmConversionResult } from '../utils/yfmTable';
+import type { ReplaceDecision, ReplaceRequest } from './useReplaceGuard';
 
 export interface UseFileOperationsParams {
   /**
@@ -13,9 +14,14 @@ export interface UseFileOperationsParams {
    * so saves always persist the freshest editor content.
    */
   getValue?: () => YfmConversionResult;
+  /**
+   * Guard for operations that replace the open document. Returns
+   * 'cancel' to abort, 'replace' to continue.
+   */
+  beforeReplace?: (request: ReplaceRequest) => Promise<ReplaceDecision>;
 }
 
-export function useFileOperations({ getValue }: UseFileOperationsParams = {}) {
+export function useFileOperations({ getValue, beforeReplace }: UseFileOperationsParams = {}) {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [content, setContent] = useState('# Welcome to Gravity Markdown\n\nStart typing here...');
   const [currentValue, setCurrentValue] = useState(content);
@@ -38,7 +44,7 @@ export function useFileOperations({ getValue }: UseFileOperationsParams = {}) {
       return true;
     } catch (e) {
       console.error(e);
-      notify(`Error saving file: ${formatIpcError(e)}`, 'danger');
+      notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
   }, [currentValue, getValue]);
@@ -58,16 +64,20 @@ export function useFileOperations({ getValue }: UseFileOperationsParams = {}) {
   const handleOpenFile = useCallback(async (path: string) => {
     try {
       if (!isSupportedFile(path)) {
-        notify('Unsupported file type', 'danger');
+        notify("This file type can't be opened here — choose .md, .txt or .markdown", 'danger');
         return;
       }
+      // Never replace a document with unsaved edits without asking first.
+      const decision = await beforeReplace?.({ sourceName: getFileName(path), allowInsert: false });
+      if (decision === 'cancel') return;
       const text = await invokeReadFileContent(path);
       loadContent(text, path, true);
     } catch (e) {
       console.error(e);
-      notify('Error opening file', 'danger');
+      // Rust rejects binary garbage with FS_INVALID_DATA / file too large etc.
+      notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
     }
-  }, [loadContent]);
+  }, [beforeReplace, loadContent]);
 
   const handleOpen = useCallback(async () => {
     try {
@@ -76,14 +86,16 @@ export function useFileOperations({ getValue }: UseFileOperationsParams = {}) {
         filters: [{ name: 'Markdown', extensions: [...SUPPORTED_EXTENSIONS] }],
       });
       if (file && typeof file === 'string') {
+        const decision = await beforeReplace?.({ sourceName: getFileName(file), allowInsert: false });
+        if (decision === 'cancel') return;
         const text = await safeReadTextFile(file);
         loadContent(text, file, true);
       }
     } catch (e) {
       console.error(e);
-      notify('Error opening file', 'danger');
+      notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
     }
-  }, [loadContent]);
+  }, [beforeReplace, loadContent]);
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     if (currentFile) {
@@ -107,7 +119,7 @@ export function useFileOperations({ getValue }: UseFileOperationsParams = {}) {
       return false;
     } catch (e) {
       console.error(e);
-      notify('Error saving file', 'danger');
+      notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
   }, [persist]);

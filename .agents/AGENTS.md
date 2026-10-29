@@ -32,7 +32,7 @@ You are a Senior Desktop App Engineer (Tauri + React). Your mission is to mainta
 1. **ESM Only**: No `require()`. Use `import` or dynamic `import()`. The project is `"type": "module"`.
 2. **Binary Safety**: Always slice `ArrayBuffer` from `Uint8Array` before passing to libraries. Never use `.buffer` directly.
 3. **Peer Dependencies**: `katex` must stay `^0.16.x`; `markdown-it` must stay `^13.x` — blocked by Gravity UI extensions.
-4. **Binary Export**: `html-to-docx` returns `Blob` in the browser. Always check `instanceof Blob` before converting to `Uint8Array`.
+4. **Binary Export**: DOCX is packed via `Packer.toBlob` → `blob.arrayBuffer()` → `Uint8Array` → `safeWriteBinaryFile` (base64 fallback). Never write `.buffer` of a TypedArray directly.
 5. **No Legacy Imports**: Never re-add `@m2d/md2docx`. It was removed for Node-specific dependency incompatibility.
 6. **Theme Toggle & Providers**: Always wrap the app in `ThemeProvider` + `ToasterProvider`. The editor crashes without `Toaster` context.
 7. **Vite Base Path**: `vite.config.ts` must have `base: './'` — Tauri's local protocol doesn't resolve absolute paths.
@@ -48,13 +48,15 @@ Any coding agent operating in this workspace must utilize the existing system co
 | Skill Area | Component / Service | Primary Implementation Files | Key Features |
 | :--- | :--- | :--- | :--- |
 | **Markdown Editing** | Gravity UI Editor | `useMarkdownEditor`, `MarkdownEditorView` | Full-featured WYSIWYG and markup markdown editor with LaTeX and Mermaid extensions. |
-| **File System Access** | Tauri Plugins | `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs` | Native OS dialogs for open/save; path tracked in `currentFile` state. |
-| **DOCX Import** | Mammoth + Turndown | `mammoth`, `turndown` | `.docx` → binary → mammoth HTML → Turndown Markdown. ArrayBuffer sliced safely. |
-| **DOCX Export** | Markdown-It + html-to-docx | `markdown-it`, `html-to-docx` | Markdown → HTML → `html-to-docx` → Uint8Array → Tauri FS. Dynamic imports used. |
-| **XLSX Import** | SheetJS | `xlsx` | `.xlsx` → XLSX.read() → sheet_to_json → Markdown table formatting with cell sanitization. |
-| **Theme Switching** | Gravity UI Theme | `ThemeProvider`, `app-store.json` | Cycles between Light, Dark, and Solarized Light. Theme persisted via `plugin-store`. |
-| **Window State** | Window Persistence | `tauri-plugin-window-state` | Automatically saves and restores window position, size, and maximize state. |
-| **File Association** | OS Integration | `tauri.conf.json` | Registers `.md`/`.markdown` extensions; Rust emits `file-open` event to frontend. |
+| **File System Access** | Tauri Plugins + Rust fallbacks | `@tauri-apps/plugin-dialog`/`plugin-fs`, custom `*_file_content` commands | Native OS dialogs; path-traversal guard, extension whitelists (read: md/txt/markdown, write text: md/txt/markdown, write binary: docx), 32 MB cap; structured `{code, message}` IPC errors (`FS_*` codes). |
+| **DOCX Import** | Web Worker: mammoth + turndown | `src/workers/docxImport.worker.ts`, `src/utils/worker.ts` (`runWorker`) | `.docx` → binary → mammoth HTML → Turndown Markdown off the main thread. ArrayBuffer sliced safely. |
+| **DOCX Export** | Web Worker (Markdown→HTML) + `docx` lib | `src/workers/mdRender.worker.ts`, `src/hooks/useExport.ts` | Markdown → HTML in a worker (markdown-it + LaTeX + YFM tables), DOM → `docx` objects on the main thread. Grid-based tables with col/rowspan; RU/GOST margins. NOT `html-to-docx` — it needs Node modules unavailable in the browser. |
+| **XLSX Import** | Web Worker: SheetJS | `src/workers/xlsxImport.worker.ts` | `.xlsx`/CSV → `sheet_to_json` → Markdown table via the shared `rowsToPipeTable` serializer. |
+| **YFM Tables** | Save-time sanitizer | `src/utils/yfmTable.ts` | Lossless `#| ... |#` → pipe-table conversion on save (fence-aware); tables with spans/attributes stay YFM and are reported via toast. |
+| **Table Serialization** | Single serializer | `src/utils/pipeTable.ts` | All pipe-table producers go through `rowsToPipeTable` with `\|` escaping. |
+| **Update Check** | GitHub Releases API | `src/utils/versionCheck.ts`, `src/hooks/useUpdateCheck.ts` | Startup check; "Update Available" dialog; "Skip this version" persisted (`app-store.json`). Needs `connect-src https://api.github.com` in the CSP. |
+| **Theme Switching** | Gravity UI Theme | `ThemeProvider`, `app-store.json` (plugin-store) | Cycles Light/Dark/Solarized; theme + zoom persisted; solarized class applied on `document.body` so portal dialogs/toasts follow it. |
+| **Window State** | Window Persistence + Single Instance | `tauri-plugin-window-state`, `tauri-plugin-single-instance` | Restores position/size/maximized state; second launch focusses the first window and forwards the file argument as `file-open` event. |
 
 ---
 
@@ -65,6 +67,7 @@ Any coding agent operating in this workspace must utilize the existing system co
 * **Styling**: SCSS + Gravity UI Theming (light / dark / solarized-light)
 * **LaTeX**: `@gravity-ui/markdown-editor-latex-extension` + KaTeX (`^0.16.x`)
 * **Diagrams**: `@diplodoc/mermaid-extension`
+* **Threading**: heavy conversions (DOCX/XLSX import, Markdown→HTML render) run in Web Workers (`src/workers/` + `runWorker`); `DOMParser`/`Blob` stay main-thread.
 
 ---
 

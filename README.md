@@ -26,18 +26,29 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.5_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.5_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_x64-setup.exe)
 *   💻 **Windows (ARM64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.5_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.5_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_arm64-setup.exe)
 *   🍎 **macOS (Universal)**:
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.5/gravitymd_1.0.5_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
 
----
+## 🆕 What's New in 1.0.6
 
+This release is a desktop-craft pass: the editor got a document identity, a keyboard layer, and safer file operations.
+
+*   **Status bar** — file name and folder, live save state, word count and editing mode (WYSIWYG / Markup) in one 28 px strip.
+*   **Verb toolbar** — Open · Save · Save as · Import · Export instead of extension chips; every control has a unique accessible name.
+*   **Safer file handling** — Open, Import and Explorer double-clicks now ask before discarding unsaved edits; DOCX import can replace the document or insert at the cursor.
+*   **Keyboard & accessibility** — Esc leaves the editor for the toolbar, focus rings are visible, dialog buttons are keyboard reachable; text contrast passes WCAG AA in all three themes.
+*   **Faster cold start** — the editor (ProseMirror + CodeMirror + KaTeX + Mermaid) loads as its own async chunk: the shell paints immediately instead of waiting on a 3.8 MB bundle.
+*   **Typography** — comfortable 1.45 leading, a real heading scale that follows the zoom slider, themed caret/selection/scrollbars, tabular numerals for counters.
+*   **Fix** — tables no longer paint over the sticky formatting toolbar while scrolling.
+
+---
 ## ✨ Features
 
 ### 📝 Editing & Formatting
@@ -93,7 +104,7 @@ Ensure you have the following installed on your Windows machine:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/gravity-markdown.git
+   git clone https://github.com/ButcchPro/gravity-markdown.git
    cd gravity-markdown
    ```
 
@@ -133,9 +144,10 @@ npx tauri build --no-bundle
 │   ├── App.tsx            # Application shell: wiring hooks, dialogs, close interception
 │   ├── App.scss           # Styling, editor typography and zoom rules
 │   ├── main.tsx           # Application entry point and providers
-│   ├── components/        # Toolbar, EditorWrapper, dialogs (About, Unsaved, Update)
-│   ├── hooks/             # useTheme, useZoom, useFileOperations, useImport, useExport, useUpdateCheck
-│   ├── utils/             # IPC wrappers, YFM→PIPE table converter, pipe-table serializer, notification
+│   ├── components/        # Toolbar, StatusBar, EditorWrapper, dialogs (About, Unsaved, Update, Confirm)
+│   ├── editor/            # Table paste interception and table-cell schema overrides
+│   ├── hooks/             # Theme/zoom persistence, file ops, import, export, update check, replace guard
+│   ├── utils/             # IPC wrappers, YFM→PIPE converter, pipe-table serializer, text helpers
 │   ├── workers/           # Web Workers: DOCX import, XLSX import, Markdown→HTML render
 │   └── types/             # Structured IPC contracts and error payloads
 ├── tests/                 # Utility tests: npm run test:utils
@@ -144,6 +156,8 @@ npx tauri build --no-bundle
 │   │   ├── lib.rs         # Custom Tauri commands (structured {code,message} errors, single instance)
 │   │   └── main.rs        # Entry point
 │   └── tauri.conf.json    # Tauri configuration, capabilities (incl. CSP), and file associations
+├── PRODUCT.md             # Product truth: users, positioning, principles
+├── DESIGN.md              # Visual system: tokens, type, layout, components (Impeccable)
 ├── history.md             # Chronological development history
 └── README.md              # Project documentation
 ```

@@ -1,11 +1,9 @@
 import { useEffect, useRef, useCallback, useImperativeHandle, type Ref } from 'react';
 import { useMarkdownEditor, MarkdownEditorView } from '@gravity-ui/markdown-editor';
+import type { MarkdownEditorMode } from '@gravity-ui/markdown-editor';
 import { LatexExtension } from '@gravity-ui/markdown-editor-latex-extension';
 import { Mermaid } from '@gravity-ui/markdown-editor/extensions/additional/Mermaid/index.js';
-import { Plugin } from 'prosemirror-state';
-import { Slice } from 'prosemirror-model';
-import TurndownService from 'turndown';
-import { rowsToPipeTable } from '../utils/pipeTable';
+import { applyTablePasteExtensions } from '../editor/tablePaste';
 import { sanitizeYfmTables, type YfmConversionResult } from '../utils/yfmTable';
 
 export interface EditorHandle {
@@ -16,15 +14,19 @@ export interface EditorHandle {
    * dirty flag matches what the caller is about to persist.
    */
   sanitizeForSave: () => YfmConversionResult;
+  /** Inserts markdown at the caret (DOCX import → "Insert at cursor"). */
+  insertMarkup: (markup: string) => void;
 }
 
 interface EditorWrapperProps {
   initialContent: string;
   onSave: (content: string) => void;
+  /** Reports the active editing mode for the status bar. */
+  onModeChange?: (mode: MarkdownEditorMode) => void;
   ref?: Ref<EditorHandle>;
 }
 
-export function EditorWrapper({ initialContent, onSave, ref }: EditorWrapperProps) {
+export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: EditorWrapperProps) {
   const editor = useMarkdownEditor({
     md: { html: true },
     initial: { markup: initialContent },
@@ -37,113 +39,7 @@ export function EditorWrapper({ initialContent, onSave, ref }: EditorWrapperProp
           },
         });
         builder.use(Mermaid, { loadRuntimeScript: () => {} });
-
-        // Custom plugin to intercept HTML paste containing tables and convert them to Markdown tables
-        builder.addPlugin((deps) => {
-          const turndownService = new TurndownService();
-          turndownService.addRule('table', {
-            filter: 'table',
-            replacement: (_content, node) => {
-              const table = node as HTMLTableElement;
-              const rows = Array.from(table.querySelectorAll('tr'));
-              if (rows.length === 0) return '';
-
-              let colCount = 0;
-              const rowsData: string[][] = [];
-              rows.forEach((row, rowIndex) => {
-                const cells = Array.from(row.querySelectorAll('th, td'));
-                if (cells.length === 0) return;
-
-                if (rowIndex === 0) {
-                  colCount = cells.length;
-                }
-
-                const cellTexts = cells.map(cell => {
-                  return cell.textContent?.replace(/\r?\n/g, ' ').trim() || '';
-                });
-
-                while (cellTexts.length < colCount) {
-                  cellTexts.push('');
-                }
-                if (cellTexts.length > colCount && rowIndex === 0) {
-                  colCount = cellTexts.length;
-                }
-                rowsData.push(cellTexts);
-              });
-
-              if (rowsData.length === 0 || rowsData[0].length === 0) return '';
-              const [header, ...data] = rowsData;
-              return '\n' + rowsToPipeTable(header, data) + '\n';
-            }
-          });
-
-          return new Plugin({
-            props: {
-              handlePaste(view, event) {
-                if (!event.clipboardData) return false;
-
-                const html = event.clipboardData.getData('text/html');
-                if (html && /<table[^>]*>/i.test(html)) {
-                  try {
-                    const markdown = turndownService.turndown(html);
-                    if (markdown && markdown.trim()) {
-                      const docNode = deps.markupParser.parse(markdown);
-                      const slice = new Slice(docNode.content, 0, 0);
-                      view.dispatch(view.state.tr.replaceSelection(slice));
-                      return true; // Intercepted and handled!
-                    }
-                  } catch (err) {
-                    console.error('Failed to convert HTML table on paste:', err);
-                  }
-                }
-                return false;
-              }
-            }
-          });
-        });
-
-        // Fix table cell pasting: allow th and td without cell-align attribute, and parse alignment
-        builder.overrideNodeSpec('th', (spec) => {
-          return {
-            ...spec,
-            parseDOM: [
-              {
-                tag: 'th',
-                getAttrs: (dom) => {
-                  const el = dom as HTMLElement;
-                  let align = el.getAttribute('cell-align') || el.getAttribute('align');
-                  if (!align && el.style && el.style.textAlign) {
-                    align = el.style.textAlign;
-                  }
-                  return {
-                    'cell-align': align === 'center' || align === 'right' ? align : 'left',
-                  };
-                },
-              },
-            ],
-          };
-        });
-
-        builder.overrideNodeSpec('td', (spec) => {
-          return {
-            ...spec,
-            parseDOM: [
-              {
-                tag: 'td',
-                getAttrs: (dom) => {
-                  const el = dom as HTMLElement;
-                  let align = el.getAttribute('cell-align') || el.getAttribute('align');
-                  if (!align && el.style && el.style.textAlign) {
-                    align = el.style.textAlign;
-                  }
-                  return {
-                    'cell-align': align === 'center' || align === 'right' ? align : 'left',
-                  };
-                },
-              },
-            ],
-          };
-        });
+        applyTablePasteExtensions(builder);
       }
     }
   });
@@ -164,6 +60,16 @@ export function EditorWrapper({ initialContent, onSave, ref }: EditorWrapperProp
     };
   }, [editor, debouncedSave]);
 
+  // Editing mode is part of the document's state: the status bar names it.
+  useEffect(() => {
+    onModeChange?.(editor.currentMode);
+    const handler = (payload: { mode: MarkdownEditorMode }) => onModeChange?.(payload.mode);
+    editor.on('change-editor-mode', handler);
+    return () => {
+      editor.off('change-editor-mode', handler);
+    };
+  }, [editor, onModeChange]);
+
   // The imperative handle exists so save flows (Save / Save As / close dialog)
   // always read the freshest markup straight from the editor, not the
   // debounced React state. Side effects (warnings about kept tables) belong
@@ -180,10 +86,26 @@ export function EditorWrapper({ initialContent, onSave, ref }: EditorWrapperProp
     return sanitized;
   }, [editor]);
 
-  useImperativeHandle(ref, () => ({ sanitizeForSave }), [sanitizeForSave]);
+  const insertMarkup = useCallback((markup: string) => {
+    editor.insert(markup);
+  }, [editor]);
+
+  useImperativeHandle(ref, () => ({ sanitizeForSave, insertMarkup }), [sanitizeForSave, insertMarkup]);
+
+  // Keyboard escape from the editing surface: ProseMirror/CodeMirror consume
+  // Tab and keep the focus trapped, so Esc returns to the app toolbar — the
+  // documented way out for keyboard-only users (WCAG 2.1.2).
+  const handleEditorKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.ProseMirror, .cm-editor')) return;
+    event.preventDefault();
+    (document.activeElement as HTMLElement | null)?.blur();
+    document.querySelector<HTMLElement>('.toolbar button')?.focus();
+  }, []);
 
   return (
-    <div className="editor-wrapper">
+    <div className="editor-wrapper" onKeyDownCapture={handleEditorKeyDown}>
       <MarkdownEditorView editor={editor} stickyToolbar autofocus />
     </div>
   );

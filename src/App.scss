@@ -7,6 +7,73 @@
   color: var(--g-color-text-primary);
 }
 
+// Document identity strip. Sits below the editor, always visible: file name,
+// save state, and the size of the document — the desktop answer to "what am I
+// editing, and is my work safe?".
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 28px;
+  padding: 0 12px;
+  border-top: 1px solid var(--g-color-line-generic);
+  background-color: var(--g-color-base-generic);
+  color: var(--g-color-text-complementary);
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  z-index: 1;
+
+  .status-file {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    max-width: 46%;
+  }
+
+  .status-file-name {
+    color: var(--g-color-text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-file-path {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    text-align: left;
+  }
+
+  .status-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+
+    .status-state-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--g-color-base-positive-heavy);
+    }
+
+    &--dirty .status-state-dot {
+      background-color: var(--g-color-text-warning);
+    }
+  }
+
+  .status-meta {
+    margin-inline-start: auto;
+    white-space: nowrap;
+    color: var(--g-color-text-complementary);
+    font-size: inherit;
+  }
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -17,6 +84,10 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
   z-index: 1;
+
+  .toolbar-label {
+    margin-inline-start: 4px;
+  }
 
   .save-button-dirty {
     color: var(--g-color-text-danger);
@@ -70,10 +141,37 @@
 
 }
 
+// Narrow windows: keep every action reachable. Verb labels are the first to
+// go (icons keep their unique accessible names), then the bar tightens its
+// own rhythm instead of overflowing the window.
+@media (max-width: 1080px) {
+  .toolbar .toolbar-label {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .toolbar {
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  .toolbar .zoom-slider {
+    width: 56px;
+  }
+}
+
 .editor-container {
   flex-grow: 1;
   overflow: hidden;
   position: relative;
+
+  // Placeholder while the lazily loaded editor chunk arrives; sized so the
+  // shell does not jump when the editor mounts.
+  .editor-suspense {
+    height: 100%;
+    min-height: 240px;
+  }
 
   .editor-wrapper {
     position: relative;
@@ -83,7 +181,10 @@
   .g-md-wysiwyg-editor__toolbar,
   .g-md-markup-editor__toolbar {
     position: relative;
-    z-index: 1;
+    // Sticky chrome must stay above document content: the editor's own table
+    // style is `position: relative; z-index: 1`, so an equal z-index here let
+    // tables paint over the toolbar while scrolling.
+    z-index: 10;
     padding-bottom: 4px;
     background-color: var(--g-color-base-generic);
     border-bottom: 1px solid var(--g-color-line-generic-active);
@@ -92,30 +193,37 @@
   .g-md-wysiwyg-editor__editor,
   .g-md-markup-editor__editor {
     padding: 0 21px;
-    
+
     // Scale the entire editor content (text, line-height, margins, and paddings)
     .ProseMirror,
     .cm-editor {
       zoom: var(--editor-zoom-scale, 1);
     }
 
-    // Reduce the default spacing/intervals by 25%
+    // Type roles: headings use a fixed scale (em-based, so the zoom slider
+    // scales the whole ramp), body copy gets readable leading while keeping
+    // the compact desktop density the editor was tuned for.
     .ProseMirror {
-      line-height: 1.2 !important; // 25% reduction from typical ~1.6
+      line-height: 1.45 !important;
 
-      p, ul, ol, dl, table, blockquote, pre {
-        margin-top: 12px !important;
-        margin-bottom: 12px !important;
-        
+      p, ul, ol, dl, blockquote, pre {
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
+
         &:first-child {
           margin-top: 0 !important;
         }
       }
-      
+
+      table {
+        margin-top: 14px !important;
+        margin-bottom: 14px !important;
+      }
+
       li {
-        margin-top: 4px !important;
-        margin-bottom: 4px !important;
-        
+        margin-top: 3px !important;
+        margin-bottom: 3px !important;
+
         p {
           margin-top: 0 !important;
           margin-bottom: 0 !important;
@@ -123,10 +231,35 @@
       }
 
       h1, h2, h3, h4, h5, h6 {
-        margin-top: 18px !important;
-        margin-bottom: 8px !important;
-        line-height: 1.2 !important;
-        
+        line-height: 1.25 !important;
+        letter-spacing: -0.01em;
+      }
+
+      h1 {
+        font-size: 1.9em !important;
+        margin-top: 0.7em !important;
+        margin-bottom: 0.35em !important;
+      }
+
+      h2 {
+        font-size: 1.45em !important;
+        margin-top: 0.9em !important;
+        margin-bottom: 0.3em !important;
+      }
+
+      h3 {
+        font-size: 1.2em !important;
+        margin-top: 0.85em !important;
+        margin-bottom: 0.25em !important;
+      }
+
+      h4, h5, h6 {
+        font-size: 1.05em !important;
+        margin-top: 0.8em !important;
+        margin-bottom: 0.2em !important;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
         &:first-child {
           margin-top: 0 !important;
         }
@@ -135,7 +268,7 @@
 
     .cm-editor {
       .cm-line {
-        line-height: 1.2 !important; // 25% reduction from CodeMirror's default line-height
+        line-height: 1.45 !important;
       }
     }
   }
@@ -180,6 +313,22 @@
     font-weight: 600;
   }
 
+  .about-tagline {
+    max-width: 46ch;
+  }
+
+  .about-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--g-text-body-2-font-size);
+  }
+
+  .about-links-sep {
+    color: var(--g-color-text-hint);
+  }
+
   .about-version {
     color: var(--g-color-text-secondary);
     font-weight: 400;
@@ -219,5 +368,122 @@
   .update-version {
     color: var(--g-color-text-secondary);
     font-weight: 600;
+  }
+}
+
+.confirm-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  line-height: 1.4;
+}
+
+// Destructive action label: the danger token on a flat/outlined button.
+.g-button.dialog-danger-button,
+.g-button.dialog-danger-button .g-button__text,
+.g-button.dialog-danger-button .g-button__icon {
+  color: var(--g-color-text-danger) !important;
+}
+
+// Focus visibility. Gravity UI draws the ring on ::before with a low-contrast
+// accent; the primary text token keeps the same geometry above the 3:1 floor
+// on every theme surface (measured 2.41/2.60 before).
+.g-button:focus-visible::before {
+  outline-color: var(--g-color-text-primary) !important;
+}
+
+// The editor shell is focusable (role=button) but shipped without any focus
+// indicator, so keyboard users lost the caret-to-toolbar path entirely.
+.g-md-editor-component:focus-visible {
+  outline: 2px solid var(--g-color-text-primary);
+  outline-offset: -2px;
+}
+
+// Browser surfaces ship with defaults that belong to no design system:
+// theme text selection, the caret, and scrollbars from the palette.
+//
+// Selection must separate text from *any* surface, including table cells with
+// their own fill: Gravity's stock token is a low-alpha yellow (invisible on
+// dark fills) and the solarized override used a solid paper colour identical to
+// the table-cell background. The overrides below invert against the theme —
+// lighter on dark surfaces, darker on light ones, cool on solarized paper.
+.g-root_theme_dark {
+  --g-color-base-selection: rgba(255, 255, 255, 0.3);
+  --g-color-base-selection-hover: rgba(255, 255, 255, 0.42);
+}
+
+.g-root_theme_light {
+  --g-color-base-selection: rgba(0, 0, 0, 0.18);
+  --g-color-base-selection-hover: rgba(0, 0, 0, 0.24);
+}
+
+::selection {
+  background-color: var(--g-color-base-selection);
+}
+
+.editor-container {
+  .ProseMirror,
+  .cm-editor {
+    caret-color: var(--g-color-text-brand);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--g-color-line-generic);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--g-color-line-generic-hover);
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+// Tabular numerals: counters must not jitter as they change.
+.status-meta,
+.zoom-value,
+.about-version {
+  font-variant-numeric: tabular-nums;
+}
+
+// Contrast fixes measured in the audit: secondary text on chrome surfaces
+// failed AA (zoom label 3.64–4.36, About version 3.98 in light).
+.status-bar .status-meta,
+.toolbar .zoom-value {
+  color: var(--g-color-text-complementary) !important;
+}
+
+.about-version {
+  color: var(--g-color-text-complementary) !important;
+}
+
+// Dirty state: the raw danger token measured 2.89–4.38 across themes (AA
+// needs 4.5 for 13 px). Mixing it toward the theme's own ink direction keeps
+// the semantic red while pushing contrast past the floor in every theme.
+.toolbar .save-button-dirty,
+.toolbar .save-button-dirty .g-button__icon,
+.toolbar .save-button-dirty .g-button__text {
+  color: color-mix(in srgb, var(--g-color-text-danger) 72%, var(--g-color-text-primary)) !important;
+}
+
+// Link affordances: keep the underline legible against the surface.
+.about-link {
+  text-underline-offset: 2px;
+}
+
+// The one authored motion in the app's own chrome respects reduced motion.
+@media (prefers-reduced-motion: reduce) {
+  .zoom-slider::-webkit-slider-thumb {
+    transition: none;
   }
 }
