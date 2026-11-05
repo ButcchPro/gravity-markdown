@@ -79,6 +79,11 @@ This release is a desktop-craft pass: the editor got a document identity, a keyb
 *   **Cyrillic & Path Safety**: Includes custom Rust-backed file handlers to safely read and write files containing Cyrillic characters or located in restricted system directories, bypassing standard WebView sandbox limitations.
 *   **Update Check**: On startup the app asks GitHub whether a newer release was published and offers to open the Releases page — you can skip a version and it will not nag again.
 
+
+### 🔍 Data Files (read-only)
+
+*   **JSON / JSONC viewer**: open `*.json` and `*.jsonc` files without leaving the app. Switch between a syntax-highlighted text view (folding, line numbers) and a collapsible tree; invalid files show the exact line and column instead of a blank view.
+*   **Read-only by design**: the viewer never writes data files and the app does not register itself as a handler for `.json` — it is an inspector, not a second editor.
 ---
 
 ## 🛠️ Technical Stack

@@ -191,6 +191,13 @@ Pill geometry for every control (`border-radius: 999px` on buttons, sliders' thu
 - **Type:** 15 px / 1.45, headings 1.9/1.45/1.2/1.05 em, tables with hairline grid and 14 px separation.
 - **Surfaces:** caret and selection themed from the palette; scrollbars are 10 px thumbs on the line token.
 
+
+### Data Viewer
+- **Shell:** second surface under the same chrome; no new toolbar row — a 36 px sub-header inside the content area holds a `Tree / Text` segmented control, a filter field and the file's validity state.
+- **Text mode:** monospace 13 px / 1.5, line numbers and fold gutter on the `--g-color-base-background` surface, syntax colours from the theme palette; read-only.
+- **Tree mode:** 22 px rows, 12 px indent steps, chevron for collapsible nodes, values in secondary ink, key names in primary; invalid JSON shows a banner above the rows, never a blank screen.
+- **Error banner:** `--g-color-base-danger-light` surface, `--g-color-text-danger-heavy` text, exact `line:column` plus the parser message.
+- **Never:** an edit affordance for data files. No Save, no Save As, no Office buttons in this mode.
 ## Do's and Don'ts
 
 ### Do:

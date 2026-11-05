@@ -8,9 +8,9 @@ web
 
 ## Users
 
-Technical writers, engineers and documentation-adjacent specialists on Windows/macOS who keep plain `.md` files on disk and treat Markdown as the durable source format. They write notes, specs, README-like docs and release notes, often bilingual RU/EN, and frequently need to round-trip that content through Word/Excel for colleagues who live in Office.
+Technical writers, engineers and documentation-adjacent specialists on Windows/macOS who keep plain `.md` files on disk and treat Markdown as the durable source format. They write notes, specs, README-like docs and release notes, often bilingual RU/EN, and frequently need to round-trip that content through Word/Excel for colleagues who live in Office. They also inspect the data that surrounds their docs — API responses, config files, exported JSON dumps — and today must leave the editor (or paste the JSON into a fenced code block) to read it.
 
-Job to be done: open a local markdown file, edit it without fighting the markup, and hand it to the rest of the company as a Word document — without leaving the file as the source of truth. *(inferred from repo evidence, README, history.md and the shipped UI)*
+Job to be done: open a local markdown file, edit it without fighting the markup, and hand it to the rest of the company as a Word document — and, without switching apps, *read* machine data (JSON/JSONC, later YAML/TOML) next to that work. The editor never writes data files. *(inferred from repo evidence, README, history.md and the shipped UI)*
 
 ## Product Purpose
 
@@ -18,7 +18,7 @@ A single-window desktop Markdown editor that opens instantly, edits `.md` in pla
 
 ## Positioning
 
-On-device, format-honest markdown pipeline: YFM wide-tables are normalised to standard pipe tables on save (so GitHub/VS Code stay compatible), DOCX export preserves merged cells and RU/GOST page margins, and all heavy conversions run in background workers on the local machine — no cloud, no account, no upload. *(capabilities verified in code; positioning inferred)*
+On-device, format-honest markdown pipeline: YFM wide-tables are normalised to standard pipe tables on save (so GitHub/VS Code stay compatible), DOCX export preserves merged cells and RU/GOST page margins, and all heavy conversions run in background workers on the local machine — no cloud, no account, no upload. The product also reads machine data without mutating it: JSON-like files open in a read-only hybrid viewer (syntax-highlighted text and a collapsible tree) with the same local-first guarantees as documents — no upload, no account, no reformatting of the file on disk. Read-only is a commitment, not a limitation: the app never writes `.json`/`.yaml`/`.toml`. *(capabilities verified in code; positioning inferred)*
 
 ## Operating Context
 
@@ -31,8 +31,9 @@ On-device, format-honest markdown pipeline: YFM wide-tables are normalised to st
 ## Capabilities and Constraints
 
 - Editor engine: `@gravity-ui/markdown-editor` (ProseMirror + CodeMirror); katex `^0.16.x` and markdown-it `^13.x` are pinned by upstream peer dependencies.
-- File IO is gated: Rust commands enforce extension whitelists (read/write text: md/txt/markdown, write binary: docx), 32 MB cap, structured `{code, message}` errors; capabilities allow arbitrary paths for Cyrillic/restricted locations.
+- File IO is gated: Rust commands enforce extension whitelists (read: md/txt/markdown plus read-only data formats; write text: md/txt/markdown, write binary: docx), 32 MB cap, structured `{code, message}` errors; capabilities allow arbitrary paths for Cyrillic/restricted locations.
 - No account, telemetry, or cloud sync; network access is limited to the GitHub release check (`connect-src https://api.github.com`).
+- Data viewing (read-only): `.json`, `.jsonc` (Phase 1); `.json5`, `.yaml`, `.yml`, `.toml` (Phase 2). Parsed locally, displayed as text or tree, never written back. File associations for data formats are deliberately **not** registered.
 - Undecided / not implemented: autosave, spell check, GPT assistant, recent-files list, tabbed editing, multi-window.
 
 ## Brand Commitments
@@ -53,6 +54,7 @@ Name **GravityMD** (executable `gravitymd`), author Andrey Obushev / OpenSky Kft
 3. **Local, private, fast.** Heavy work happens on the machine and off the UI thread; no account or upload is ever required.
 4. **Office is a destination, not a second home.** DOCX/XLSX round-trips should produce documents that look deliberate to Word users, without turning the editor into an Office clone.
 5. **Desktop manners.** Keyboard access, native menus, window behaviour, and predictable file operations are part of the product, not polish.
+6. **Inspect, don't mutate.** Data files open read-only. The viewer may format a value for reading, but the bytes on disk and the document model stay untouched — no accidental rewrites, no silent normalisation.
 
 ## Accessibility & Inclusion
 
