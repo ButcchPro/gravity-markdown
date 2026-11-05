@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "gravitymd",
-  "version": "1.0.6",
+  "version": "1.2.0",
   "identifier": "com.gravity.markdown",
   "build": {
     "frontendDist": "../dist",

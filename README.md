@@ -26,15 +26,22 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_x64-setup.exe)
 *   💻 **Windows (ARM64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_arm64-setup.exe)
 *   🍎 **macOS (Universal)**:
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.0.6/gravitymd_1.0.6_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
+
+## 🆕 What's New in 1.2.0
+
+*   **Read-only data viewer** — JSON, JSONC, JSON5, YAML and TOML open in a hybrid text/tree surface with folding, search and copy-path.
+*   **Safe by construction** — data files can never be saved over: Save/Save As are disabled, the file-operations layer refuses data kinds, and the Rust write whitelist stays Markdown-only.
+*   **Markdown untouched** — the editor, import/export, status bar and keyboard layer behave exactly as before when a `.md` file is open; the data surface only exists for data files.
+*   **Positioning** — GravityMD is now a Markdown workspace that also *inspects* machine data: "inspect, don't mutate".
 
 ## 🆕 What's New in 1.0.6
 
@@ -82,8 +89,11 @@ This release is a desktop-craft pass: the editor got a document identity, a keyb
 
 ### 🔍 Data Files (read-only)
 
-*   **JSON / JSONC viewer**: open `*.json` and `*.jsonc` files without leaving the app. Switch between a syntax-highlighted text view (folding, line numbers) and a collapsible tree; invalid files show the exact line and column instead of a blank view.
-*   **Read-only by design**: the viewer never writes data files and the app does not register itself as a handler for `.json` — it is an inspector, not a second editor.
+*   **JSON / JSONC / JSON5 / YAML / TOML**: open data files without leaving the editor. Toggle between a syntax-highlighted text view with folding and line numbers, and a collapsible tree with a key/value filter; double-click a row to copy its JSON path.
+*   **Invalid files explain themselves**: parse errors report the exact line and column instead of showing a blank pane.
+*   **Read-only by design**: the viewer never writes data files, and GravityMD does not register itself as a handler for `.json`/`.yaml` — it stays an inspector, not a second editor.
+*   **Large files stay responsive**: files above 256 KB are parsed in a background Web Worker, and the tree renders only visible rows.
+
 ---
 
 ## 🛠️ Technical Stack
