@@ -159,12 +159,12 @@ npx tauri build --no-bundle
 │   ├── App.tsx            # Application shell: wiring hooks, dialogs, close interception
 │   ├── App.scss           # Styling, editor typography and zoom rules
 │   ├── main.tsx           # Application entry point and providers
-│   ├── components/        # Toolbar, StatusBar, EditorWrapper, dialogs (About, Unsaved, Update, Confirm)
+│   ├── components/        # Toolbar, StatusBar, EditorWrapper, DataViewer/DataTextView/DataTreeView, dialogs
 │   ├── editor/            # Table paste interception and table-cell schema overrides
 │   ├── hooks/             # Theme/zoom persistence, file ops, import, export, update check, replace guard
-│   ├── utils/             # IPC wrappers, YFM→PIPE converter, pipe-table serializer, text helpers
-│   ├── workers/           # Web Workers: DOCX import, XLSX import, Markdown→HTML render
-│   └── types/             # Structured IPC contracts and error payloads
+│   ├── utils/             # IPC wrappers, YFM→PIPE converter, pipe-table serializer, data parsers, text helpers
+│   ├── workers/           # Web Workers: DOCX import, XLSX import, Markdown→HTML render, data parsing
+│   └── types/             # IPC contracts, error payloads, file-kind detection
 ├── tests/                 # Utility tests: npm run test:utils
 ├── src-tauri/             # Rust Backend
 │   ├── src/
@@ -173,6 +173,7 @@ npx tauri build --no-bundle
 │   └── tauri.conf.json    # Tauri configuration, capabilities (incl. CSP), and file associations
 ├── PRODUCT.md             # Product truth: users, positioning, principles
 ├── DESIGN.md              # Visual system: tokens, type, layout, components (Impeccable)
+├── docs/                  # Implementation plans (superpowers/plans)
 ├── history.md             # Chronological development history
 └── README.md              # Project documentation
 ```
