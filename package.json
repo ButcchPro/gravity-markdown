@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "test:utils": "node --experimental-strip-types tests/utils.test.ts",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:data": "node --experimental-strip-types --test tests/dataFormat.test.ts",
+    "test": "npm run test:utils && npm run test:data"
   },
   "dependencies": {
     "@diplodoc/latex-extension": "^2.0.2",
