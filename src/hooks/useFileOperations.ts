@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { safeReadTextFile, safeWriteTextFile } from '../utils/ipc';
-import { getFileName, isSupportedFile, SUPPORTED_EXTENSIONS } from '../utils/path';
+import { getFileName, isViewableFile, SUPPORTED_EXTENSIONS } from '../utils/path';
 import { notify } from '../utils/notify';
 import { describeIpcError, invokeReadFileContent } from '../types/ipc';
 import type { YfmConversionResult } from '../utils/yfmTable';
 import type { ReplaceDecision, ReplaceRequest } from './useReplaceGuard';
+import { detectFileKind, isDataKind, VIEWABLE_EXTENSIONS, type FileKind } from '../types/fileKind';
 
 export interface UseFileOperationsParams {
   /**
@@ -26,10 +27,17 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
   const [content, setContent] = useState('# Welcome to Gravity Markdown\n\nStart typing here...');
   const [currentValue, setCurrentValue] = useState(content);
   const [fileKey, setFileKey] = useState(0);
+  const [fileKind, setFileKind] = useState<FileKind>('markdown');
 
   // Single place to persist a save payload and surface its diagnostics:
   // kept YFM tables (spans etc.) stay in YFM form — tell the user why.
+  // Data files are read-only: refuse before touching the filesystem, so a UI
+  // regression can never rewrite user JSON/YAML.
   const persist = useCallback(async (path: string): Promise<boolean> => {
+    if (isDataKind(fileKind)) {
+      notify('Data files are read-only here — open the file in an editor to change it', 'warning');
+      return false;
+    }
     const { value, kept } = getValue ? getValue() : { value: currentValue, kept: 0 };
     if (kept > 0) {
       notify(
@@ -47,12 +55,14 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
       notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
-  }, [currentValue, getValue]);
+  }, [currentValue, getValue, fileKind]);
 
   const dirty = currentValue !== content;
 
   const loadContent = useCallback((newContent: string, newFile: string | null = null, showToast = false) => {
+    const kind = newFile ? detectFileKind(newFile) ?? 'markdown' : 'markdown';
     setCurrentFile(newFile);
+    setFileKind(kind);
     setContent(newContent);
     setCurrentValue(newContent);
     setFileKey(prev => prev + 1);
@@ -63,8 +73,11 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
 
   const handleOpenFile = useCallback(async (path: string) => {
     try {
-      if (!isSupportedFile(path)) {
-        notify("This file type can't be opened here — choose .md, .txt or .markdown", 'danger');
+      if (!isViewableFile(path)) {
+        notify(
+          "This file type can't be opened here — choose .md, .json, .yaml or another supported file",
+          'danger',
+        );
         return;
       }
       // Never replace a document with unsaved edits without asking first.
@@ -83,7 +96,11 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
     try {
       const file = await open({
         multiple: false,
-        filters: [{ name: 'Markdown', extensions: [...SUPPORTED_EXTENSIONS] }],
+        filters: [
+          { name: 'Markdown & data files', extensions: [...VIEWABLE_EXTENSIONS] },
+          { name: 'Markdown', extensions: [...SUPPORTED_EXTENSIONS] },
+          { name: 'Data files', extensions: ['json', 'jsonc', 'json5', 'yaml', 'yml', 'toml'] },
+        ],
       });
       if (file && typeof file === 'string') {
         const decision = await beforeReplace?.({ sourceName: getFileName(file), allowInsert: false });
@@ -106,6 +123,10 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
 
   const handleSaveAs = useCallback(async (): Promise<boolean> => {
     try {
+      if (isDataKind(fileKind)) {
+        notify('Data files are read-only here — open the file in an editor to change it', 'warning');
+        return false;
+      }
       const file = await save({
         filters: [{ name: 'Markdown', extensions: ['md'] }],
       });
@@ -122,10 +143,11 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
       notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
-  }, [persist]);
+  }, [persist, fileKind]);
 
   return {
     currentFile,
+    fileKind,
     content,
     currentValue,
     setCurrentValue,
