@@ -9,6 +9,8 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { EditorHandle } from './components/EditorWrapper';
 import { Toolbar } from './components/Toolbar';
 import { StatusBar } from './components/StatusBar';
+import { DataViewer, type DataViewerStatus } from './components/DataViewer';
+import { isDataKind } from './types/fileKind';
 import { AboutDialog } from './components/AboutDialog';
 import { UnsavedChangesDialog } from './components/UnsavedChangesDialog';
 import { UpdateDialog } from './components/UpdateDialog';
@@ -44,6 +46,7 @@ export default function App() {
   const [appVersion, setAppVersion] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>('wysiwyg');
+  const [dataStatus, setDataStatus] = useState<DataViewerStatus | null>(null);
   const editorRef = useRef<EditorHandle>(null);
   // Latest dirty flag for stable event handlers and the replace guard.
   const dirtyRef = useRef(false);
@@ -53,7 +56,7 @@ export default function App() {
   const { update, skip, dismiss } = useUpdateCheck(ready);
   const { pending, beforeReplace, decide } = useReplaceGuard(() => dirtyRef.current);
   const {
-    currentFile, content, currentValue, setCurrentValue,
+    currentFile, fileKind, content, currentValue, setCurrentValue,
     fileKey, dirty, loadContent, handleOpenFile, handleOpen,
     handleSave, handleSaveAs,
   } = useFileOperations({
@@ -114,8 +117,16 @@ export default function App() {
     getCurrentWindow().setTitle(`Gravity Markdown — ${filename}${dirty ? ' •' : ''}`).catch(console.error);
   }, [currentFile, dirty]);
 
-  const wordCount = useMemo(() => countWords(currentValue), [currentValue]);
+  const dataMode = isDataKind(fileKind);
+  const wordCount = useMemo(() => (dataMode ? 0 : countWords(currentValue)), [dataMode, currentValue]);
   const modeLabel = editorMode === 'markup' ? 'Markup' : 'WYSIWYG';
+  const dataBytes = useMemo(() => new TextEncoder().encode(content).length, [content]);
+  const dataMeta = dataMode && dataStatus
+    ? `${dataStatus.label} · ${dataStatus.valid ? 'valid' : 'invalid'} · ${formatBytes(
+        dataStatus.stats?.bytes ?? dataBytes,
+      )}`
+    : undefined;
+  const onDataStatus = useCallback((status: DataViewerStatus) => setDataStatus(status), []);
 
   const handleSaveWithCheck = useCallback(async () => {
     if (!currentFile) {
@@ -198,24 +209,30 @@ export default function App() {
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
             theme={theme}
+            dataMode={dataMode}
           />
-          <main className="editor-container">
-            <Suspense fallback={<div className="editor-suspense" />}>
-              <EditorWrapper
-                ref={editorRef}
-                key={fileKey}
-                initialContent={content}
-                onSave={setCurrentValue}
-                onModeChange={setEditorMode}
-              />
-            </Suspense>
+          <main className={`editor-container${dataMode ? ' editor-container--data' : ''}`}>
+            {dataMode ? (
+              <DataViewer key={fileKey} content={content} kind={fileKind} onStatus={onDataStatus} />
+            ) : (
+              <Suspense fallback={<div className="editor-suspense" />}>
+                <EditorWrapper
+                  ref={editorRef}
+                  key={fileKey}
+                  initialContent={content}
+                  onSave={setCurrentValue}
+                  onModeChange={setEditorMode}
+                />
+              </Suspense>
+            )}
           </main>
           <StatusBar
             fileName={fileName}
             filePath={currentFile}
-            dirty={dirty}
+            dirty={dataMode ? false : dirty}
             words={wordCount}
             mode={modeLabel}
+            dataMeta={dataMeta}
           />
         </div>
         <AboutDialog
@@ -267,4 +284,10 @@ export default function App() {
       </ToasterProvider>
     </ThemeProvider>
   );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

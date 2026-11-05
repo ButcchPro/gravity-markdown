@@ -21,6 +21,8 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   theme: AppTheme;
+  /** True when a read-only data file is open. */
+  dataMode: boolean;
 }
 
 const THEME_LABEL: Record<AppTheme, string> = {
@@ -46,7 +48,7 @@ export function Toolbar({
   onImportDocx, onExportDocx, onImportXlsx,
   onToggleTheme, onAbout,
   dirty, zoom, onSetZoom, onZoomIn, onZoomOut,
-  theme,
+  theme, dataMode,
 }: ToolbarProps) {
   return (
     <header className="toolbar">
@@ -56,17 +58,26 @@ export function Toolbar({
       <Button
         onClick={onSave}
         view="flat"
-        title={dirty ? 'Save (unsaved changes)' : 'Save'}
-        aria-label={dirty ? 'Save — unsaved changes' : 'Save'}
-        className={dirty ? 'save-button-dirty' : undefined}
+        title={dataMode ? 'Read-only data file' : dirty ? 'Save (unsaved changes)' : 'Save'}
+        aria-label={dataMode ? 'Save (read-only data file)' : dirty ? 'Save — unsaved changes' : 'Save'}
+        className={!dataMode && dirty ? 'save-button-dirty' : undefined}
+        disabled={dataMode}
       >
         <Icon data={FloppyDisk} /><span className="toolbar-label">Save</span>
       </Button>
-      <Button onClick={onSaveAs} view="flat" title="Save as…" aria-label="Save as">
+      <Button
+        onClick={onSaveAs}
+        view="flat"
+        title={dataMode ? 'Read-only data file' : 'Save as…'}
+        aria-label={dataMode ? 'Save as (read-only data file)' : 'Save as'}
+        disabled={dataMode}
+      >
         <Icon data={FileArrowUp} /><span className="toolbar-label">Save as</span>
       </Button>
 
-      <div className="toolbar-divider" />
+      {!dataMode && (
+        <>
+          <div className="toolbar-divider" />
 
       <DropdownMenu
         items={[
@@ -129,7 +140,9 @@ export function Toolbar({
         <Text variant="body-1" color="secondary" className="zoom-value">
           {zoom}%
         </Text>
-      </div>
+          </div>
+        </>
+      )}
 
       <div className="toolbar-divider" />
 
