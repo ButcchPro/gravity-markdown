@@ -36,10 +36,16 @@ fn validate_path(path: &str) -> Result<PathBuf, AppError> {
     Ok(pb)
 }
 
+/// Read whitelist: documents plus read-only data formats.
 fn is_text_extension(path: &PathBuf) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| matches!(ext.to_lowercase().as_str(), "md" | "txt" | "markdown"))
+        .map(|ext| {
+            matches!(
+                ext.to_lowercase().as_str(),
+                "md" | "txt" | "markdown" | "json" | "jsonc" | "json5" | "yaml" | "yml" | "toml"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -47,6 +53,9 @@ fn is_text_extension(path: &PathBuf) -> bool {
 /// editor for text documents and DOCX exports; anything larger is a mistake.
 const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
 
+/// Write whitelist stays Markdown-only on purpose: data files are read-only
+/// in the app, so the IPC layer must refuse to persist them even if the UI
+/// ever regresses.
 /// Whitelist of writable file types per IPC channel:
 /// text saves go to markdown documents, binary writes go to DOCX exports.
 fn is_writable_extension(path: &PathBuf, binary: bool) -> bool {
@@ -95,7 +104,7 @@ async fn read_file_content(path: String) -> Result<String, AppError> {
 async fn write_file_content(path: String, content: String) -> Result<(), AppError> {
     let pb = validate_path(&path)?;
     if !is_writable_extension(&pb, false) {
-        return Err(AppError::new("FS_UNSUPPORTED_EXTENSION", "Writable type: md, txt, markdown"));
+        return Err(AppError::new("FS_UNSUPPORTED_EXTENSION", "Writable types: md, txt, markdown"));
     }
     if content.len() > MAX_FILE_BYTES {
         return Err(AppError::new("FS_TOO_LARGE", "Content exceeds 32 MB limit"));
