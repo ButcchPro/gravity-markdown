@@ -1,4 +1,6 @@
 import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser';
+import { parse as parseYamlSource } from 'yaml';
+import { parse as parseTomlSource } from 'smol-toml';
 import type { DataKind } from '../types/fileKind';
 
 export interface DataParseFailure {
@@ -164,4 +166,44 @@ export function pathToJsonPath(path: Array<string | number>): string {
     if (typeof segment === 'number') return `${acc}[${segment}]`;
     return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(segment) ? `${acc}.${segment}` : `${acc}["${segment}"]`;
   }, '$');
+}
+
+export function parseYamlText(text: string): DataParseResult {
+  try {
+    return { ok: true, value: parseYamlSource(text) ?? null };
+  } catch (e) {
+    const err = e as { message?: string; linePos?: Array<{ line: number; col: number }> };
+    const pos = err.linePos?.[0];
+    return {
+      ok: false,
+      error: {
+        message: err.message ?? 'YAML parse error',
+        line: pos?.line ?? 1,
+        column: pos?.col ?? 1,
+      },
+    };
+  }
+}
+
+export function parseTomlText(text: string): DataParseResult {
+  try {
+    return { ok: true, value: parseTomlSource(text) };
+  } catch (e) {
+    const err = e as { message?: string; line?: number; column?: number };
+    return {
+      ok: false,
+      error: {
+        message: err.message ?? 'TOML parse error',
+        line: err.line ?? 1,
+        column: err.column ?? 1,
+      },
+    };
+  }
+}
+
+/** Dispatches to the parser family for a kind. */
+export function parseAnyDataText(text: string, kind: DataKind): DataParseResult {
+  if (kind === 'yaml') return parseYamlText(text);
+  if (kind === 'toml') return parseTomlText(text);
+  return parseDataText(text, kind);
 }

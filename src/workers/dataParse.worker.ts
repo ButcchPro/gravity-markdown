@@ -1,6 +1,6 @@
 /// Parses data files off the main thread and returns rows + stats.
 import {
-  parseDataText,
+  parseAnyDataText,
   collectStats,
   buildTreeRows,
   type TreeRow,
@@ -22,7 +22,7 @@ export interface DataParseResponse {
 
 self.onmessage = (event: MessageEvent<DataParseRequest>) => {
   const { text, kind } = event.data;
-  const parsed = parseDataText(text, kind);
+  const parsed = parseAnyDataText(text, kind);
   if (!parsed.ok) {
     const response: DataParseResponse = { ok: false, rows: [], stats: null, error: parsed.error };
     self.postMessage(response);

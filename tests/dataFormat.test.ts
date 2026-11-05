@@ -76,3 +76,22 @@ test('formats JSON paths for copying', () => {
   assert.equal(pathToJsonPath(['weird key']), '$["weird key"]');
   assert.equal(pathToJsonPath([0]), '$[0]');
 });
+
+import { parseYamlText, parseTomlText } from '../src/utils/dataFormat.ts';
+
+test('parses YAML into plain objects', () => {
+  const ok = parseYamlText('name: demo\nitems:\n  - 1\n  - 2\n');
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.deepEqual(ok.value, { name: 'demo', items: [1, 2] });
+  const bad = parseYamlText('name: [unclosed');
+  assert.equal(bad.ok, false);
+  if (!bad.ok) assert.ok(bad.error.line >= 1);
+});
+
+test('parses TOML into plain objects', () => {
+  const ok = parseTomlText('[app]\nname = "demo"\nport = 8080\n');
+  assert.equal(ok.ok, true);
+  // smol-toml returns null-prototype objects, so compare serialised shape.\n  if (ok.ok) assert.equal(JSON.stringify(ok.value), JSON.stringify({ app: { name: 'demo', port: 8080 } }));
+  const bad = parseTomlText('name = ');
+  assert.equal(bad.ok, false);
+});

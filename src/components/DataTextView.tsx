@@ -2,9 +2,19 @@ import { useEffect, useRef } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers, keymap, highlightActiveLine } from '@codemirror/view';
 import { defaultKeymap } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  StreamLanguage,
+  type StreamParser,
+} from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { json } from '@codemirror/lang-json';
+import { yaml as yamlMode } from '@codemirror/legacy-modes/mode/yaml';
+import { toml as tomlMode } from '@codemirror/legacy-modes/mode/toml';
+import type { DataKind } from '../types/fileKind';
 
 const theme = EditorView.theme({
   '&': {
@@ -34,12 +44,20 @@ const theme = EditorView.theme({
   '.cm-content': { caretColor: 'transparent' },
 });
 
-interface DataTextViewProps {
-  text: string;
+/** JSON grammar for JSON-family files, legacy stream modes for YAML/TOML. */
+function languageFor(kind: DataKind) {
+  if (kind === 'yaml') return StreamLanguage.define(yamlMode as StreamParser<unknown>);
+  if (kind === 'toml') return StreamLanguage.define(tomlMode as StreamParser<unknown>);
+  return json();
 }
 
-/** Read-only JSON/JSONC text with folding, line numbers and search. */
-export function DataTextView({ text }: DataTextViewProps) {
+interface DataTextViewProps {
+  text: string;
+  kind: DataKind;
+}
+
+/** Read-only data text with folding, line numbers and search. */
+export function DataTextView({ text, kind }: DataTextViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,7 +71,7 @@ export function DataTextView({ text }: DataTextViewProps) {
           lineNumbers(),
           foldGutter(),
           highlightActiveLine(),
-          json(),
+          languageFor(kind),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           highlightSelectionMatches(),
           EditorState.readOnly.of(true),
@@ -63,7 +81,7 @@ export function DataTextView({ text }: DataTextViewProps) {
       }),
     });
     return () => view.destroy();
-  }, [text]);
+  }, [text, kind]);
 
   return <div className="data-text" ref={hostRef} aria-label="Data file content (read-only)" />;
 }

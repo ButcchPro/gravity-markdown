@@ -5,7 +5,7 @@ import { DataTreeView } from './DataTreeView';
 import {
   buildTreeRows,
   collectStats,
-  parseDataText,
+  parseAnyDataText,
   type DataStats,
   type TreeRow,
 } from '../utils/dataFormat';
@@ -58,7 +58,7 @@ export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
     };
 
     if (bytes <= PARSE_INLINE_LIMIT) {
-      const parsed = parseDataText(content, kind);
+      const parsed = parseAnyDataText(content, kind);
       if (parsed.ok) {
         apply(
           { label: fileKindLabel(kind), valid: true, stats: collectStats(parsed.value, bytes), error: null },
@@ -153,7 +153,7 @@ export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
         {mode === 'tree' ? (
           <DataTreeView rows={visibleRows} collapsed={collapsed} onToggle={toggle} />
         ) : (
-          <DataTextView text={content} />
+          <DataTextView text={content} kind={kind} />
         )}
       </div>
     </div>
