@@ -26,17 +26,17 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_x64-setup.exe)
 *   💻 **Windows (ARM64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_arm64-setup.exe)
 *   🍎 **macOS (Universal)**:
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.2.0/gravitymd_1.2.0_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
 
-## 🆕 What's New in 1.2.0
+## 🆕 What's New in 1.1.0
 
 *   **Read-only data viewer** — JSON, JSONC, JSON5, YAML and TOML open in a hybrid text/tree surface with folding, search and copy-path.
 *   **Safe by construction** — data files can never be saved over: Save/Save As are disabled, the file-operations layer refuses data kinds, and the Rust write whitelist stays Markdown-only.

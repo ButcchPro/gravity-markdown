@@ -43,7 +43,7 @@ Name **GravityMD** (executable `gravitymd`), author Andrey Obushev / OpenSky Kft
 ## Evidence on Hand
 
 - `README.md` (features, install, credits), `history.md` (24+ development phases: bug fixes, audit remediations, release notes), `AUDIT-REPORT.md` / `AUDIT-REPORT-2026-10.md` (quality and UX audits), `LICENSE`.
-- Real shipped releases v1.0.2–v1.2.0 with Windows x64/ARM64 and macOS universal installers; the read-only data viewer ships in v1.2.0.
+- Real shipped releases v1.0.2–v1.1.0 with Windows x64/ARM64 and macOS universal installers; the read-only data viewer ships in v1.1.0.
 - `impeccable-shots/01–12` — live screenshots of the current app (themes, 800×600 window, dialogs, zoom 200%).
 - No user research, analytics, testimonials, or support transcripts exist; future work must not fabricate them.
 

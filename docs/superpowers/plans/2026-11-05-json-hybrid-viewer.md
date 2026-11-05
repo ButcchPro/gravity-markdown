@@ -15,7 +15,7 @@
 One subsystem (data-file viewing) with two independently shippable halves:
 
 - **Phase 1 (MVP, ships 1.1.0):** JSON + JSONC, text mode, tree mode, read-only, worker parsing for large files.
-- **Phase 2 (ships 1.2.0):** JSON5, YAML, TOML — new parsers and language support behind the same interfaces.
+- **Phase 2 (shipped together with 1.1.0):** JSON5, YAML, TOML — new parsers and language support behind the same interfaces.
 
 Both phases are planned here; each task leaves the app buildable and testable.
 
@@ -1454,7 +1454,7 @@ Add to "What's New in 1.1.0" section (rename the 1.0.6 section or add a new one 
 
 ```markdown
 ## Phase 42: JSON-Hybrid Viewer (1.1.0)
-Read-only data viewing per plan `docs/superpowers/plans/2026-11-05-json-hybrid-viewer.md`: file-kind detection (`src/types/fileKind.ts`), tolerant parsing/stats/tree rows (`src/utils/dataFormat.ts`), worker parsing, CodeMirror read-only text view and virtualized tree (`DataViewer`), app/toolbar/status-bar integration, Rust read whitelist extended for reads while writes stay Markdown-only. Formats: JSON/JSONC in 1.1.0, JSON5/YAML/TOML in 1.2.0. Positioning updated in PRODUCT.md ("inspect, don't mutate").
+Read-only data viewing per plan `docs/superpowers/plans/2026-11-05-json-hybrid-viewer.md`: file-kind detection (`src/types/fileKind.ts`), tolerant parsing/stats/tree rows (`src/utils/dataFormat.ts`), worker parsing, CodeMirror read-only text view and virtualized tree (`DataViewer`), app/toolbar/status-bar integration, Rust read whitelist extended for reads while writes stay Markdown-only. Formats: JSON/JSONC and JSON5/YAML/TOML shipped together as 1.1.0 (the plan originally split them into 1.1.0/1.2.0; both phases landed in one minor release). Positioning updated in PRODUCT.md ("inspect, don't mutate").
 ```
 
 - [ ] **Step 3: Version bump 1.1.0**
