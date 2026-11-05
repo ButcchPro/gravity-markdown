@@ -487,3 +487,39 @@
     transition: none;
   }
 }
+// ── Read-only data viewer (JSON-like files) ────────────────────────────────
+// Second surface under the same chrome: no extra toolbar row, chrome stays
+// quiet, the data owns the viewport.
+.data-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background-color: var(--g-color-base-background);
+}
+
+.data-viewer__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--g-color-line-generic);
+  background-color: var(--g-color-base-generic);
+  flex-shrink: 0;
+}
+
+.data-viewer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.data-text {
+  height: 100%;
+  overflow: auto;
+}
+
+.data-text .cm-editor {
+  height: 100%;
+  background: transparent;
+}

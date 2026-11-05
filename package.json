@@ -17,6 +17,12 @@
     "test": "npm run test:utils && npm run test:data"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@diplodoc/latex-extension": "^2.0.2",
     "@diplodoc/mermaid-extension": "^2.2.3",
     "@diplodoc/tabs-extension": "^3.10.7",
