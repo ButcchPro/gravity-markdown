@@ -95,3 +95,28 @@ test('parses TOML into plain objects', () => {
   const bad = parseTomlText('name = ');
   assert.equal(bad.ok, false);
 });
+
+import { normalizeInlineBreaks } from '../src/utils/inlineBreaks.ts';
+
+test('turns <br> in a table row into spaces', () => {
+  const input = '| Command | Note |\n| --- | --- |\n| psql<br>-h host | Connect<br>now |';
+  assert.equal(
+    normalizeInlineBreaks(input),
+    '| Command | Note |\n| --- | --- |\n| psql -h host | Connect now |',
+  );
+});
+
+test('turns <br> outside tables into a markdown hard break', () => {
+  const input = 'line one<br>line two';
+  assert.equal(normalizeInlineBreaks(input), 'line one  \nline two');
+});
+
+test('handles all br spellings and leaves other html alone', () => {
+  const input = 'a<br/>b<br />c<BR>d <span>x</span>';
+  assert.equal(normalizeInlineBreaks(input), 'a  \nb  \nc  \nd <span>x</span>');
+});
+
+test('leaves markdown without br untouched', () => {
+  const input = '# Title\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
+  assert.equal(normalizeInlineBreaks(input), input);
+});

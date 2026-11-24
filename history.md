@@ -540,3 +540,11 @@ Read-only data viewing per plan `docs/superpowers/plans/2026-11-05-json-hybrid-v
 4. **Docs**: README feature section + "What's New in 1.1.0"; PRODUCT.md positioning ("inspect, don't mutate"); DESIGN.md data-viewer component; plan at `docs/superpowers/plans/2026-11-05-json-hybrid-viewer.md`.
 5. **Verification**: 11 data tests + 20 utility tests, lint 0, `npm run build`, local `tauri build`, live smoke on the dev app (valid tree, text mode, invalid-JSON banner with `line:column`, disabled actions, data status bar).
 6. **Release**: merge `feat/json-viewer` → `master`, push, tag `v1.1.0`; CI builds Windows x64/ARM64 and macOS universal installers.
+
+## Phase 44: `<br>` Rendered as Literal Text in Tables
+Report: a markdown file opened with `<br>` inside table cells displayed the tag text. Root cause: the Gravity editor models inline HTML as a literal atom by design (`HtmlSchemaSpecs` → `html_inline` node rendered as `<span data-html>`), so `<br>` is never a line break — and a pipe-table cell cannot hold a ProseMirror hard break, so even the editor's own `hard_break` node has no place there.
+1. **Normalisation on open** (`src/utils/inlineBreaks.ts`, wired into `useFileOperations.loadContent` for markdown only): inside table rows `<br>` becomes a space (words stay separated), everywhere else it becomes the Markdown hard break (`  \n`), which the editor parses into a real `<br>` node. Data files are untouched (`kind === 'markdown'` guard).
+2. **Paste converter fix** (`src/editor/tablePaste.ts`): HTML-table cells previously read `textContent`, which glues words around `<br>` ("Connect<br>now" → "Connectnow"); the converter now clones the cell, replaces `<br>` with a space, then reads text.
+3. **Tests**: four cases in `tests/dataFormat.test.ts` — table rows, paragraphs, all `<br>` spellings, no-op without tags; suite now 15 tests.
+4. **Verified live**: table cells read `psql -h host` / `Connect to the database` with zero `data-html` atoms; a paragraph `First line<br>Second line` renders a real `<br>` break. Limitation recorded: saving a table loses the in-cell line break (space remains), because the format/editor pair cannot represent it; paragraphs keep the break as a Markdown hard break.
+5. Not committed — waiting for the owner's decision on a patch release (1.1.1).

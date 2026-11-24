@@ -31,7 +31,11 @@ function htmlTableToPipeTable(table: HTMLTableElement): string {
     }
 
     const cellTexts = cells.map(cell => {
-      return cell.textContent?.replace(/\r?\n/g, ' ').trim() || '';
+      // `<br>` carries a line break: textContent would glue the words together
+      // ("Connect<br>now" → "Connectnow"), so turn breaks into spaces first.
+      const clone = cell.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+      return clone.textContent?.replace(/\s+/g, ' ').trim() || '';
     });
 
     while (cellTexts.length < colCount) {

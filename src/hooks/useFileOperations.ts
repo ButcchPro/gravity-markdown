@@ -7,6 +7,7 @@ import { describeIpcError, invokeReadFileContent } from '../types/ipc';
 import type { YfmConversionResult } from '../utils/yfmTable';
 import type { ReplaceDecision, ReplaceRequest } from './useReplaceGuard';
 import { detectFileKind, isDataKind, VIEWABLE_EXTENSIONS, type FileKind } from '../types/fileKind';
+import { normalizeInlineBreaks } from '../utils/inlineBreaks';
 
 export interface UseFileOperationsParams {
   /**
@@ -61,10 +62,12 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
 
   const loadContent = useCallback((newContent: string, newFile: string | null = null, showToast = false) => {
     const kind = newFile ? detectFileKind(newFile) ?? 'markdown' : 'markdown';
+    // <br> is a literal atom in the editor; normalise it for markdown only.
+    const normalized = kind === 'markdown' ? normalizeInlineBreaks(newContent) : newContent;
     setCurrentFile(newFile);
     setFileKind(kind);
-    setContent(newContent);
-    setCurrentValue(newContent);
+    setContent(normalized);
+    setCurrentValue(normalized);
     setFileKey(prev => prev + 1);
     if (showToast && newFile) {
       notify(`Opened: ${getFileName(newFile)}`, 'success');
