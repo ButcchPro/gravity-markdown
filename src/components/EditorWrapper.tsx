@@ -37,8 +37,8 @@ export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: Edi
       extensions: (builder) => {
         builder.use(LatexExtension, {
           loadRuntimeScript: () => {
-            import('@diplodoc/latex-extension/runtime');
-            import('@diplodoc/latex-extension/runtime/styles');
+            void import('@diplodoc/latex-extension/runtime');
+            void import('@diplodoc/latex-extension/runtime/styles');
           },
         });
         builder.use(Mermaid, { loadRuntimeScript: () => {} });

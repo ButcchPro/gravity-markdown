@@ -77,12 +77,12 @@ export default function App() {
 
   // Initialize app
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         setAppVersion(await getVersion());
         const initialFile: string | null = await invokeGetInitialFile();
         if (initialFile) {
-          handleOpenFile(initialFile);
+          void handleOpenFile(initialFile);
         }
       } catch (e) {
         console.error('App initialization failed:', e);
@@ -98,9 +98,9 @@ export default function App() {
   // first launch, so this covers "double-click .md while app is running").
   useEffect(() => {
     let unlistenFileOpen: UnlistenFn | null = null;
-    listen<string>('file-open', (event) => {
+    void listen<string>('file-open', (event) => {
       if (typeof event.payload === 'string' && event.payload) {
-        handleOpenFile(event.payload);
+        void handleOpenFile(event.payload);
       }
     }).then((fn) => {
       unlistenFileOpen = fn;
@@ -153,7 +153,7 @@ export default function App() {
       setConfirmClose(true);
     });
     return () => {
-      unlisten.then((fn) => fn());
+      void unlisten.then((fn) => fn());
     };
   }, []);
 

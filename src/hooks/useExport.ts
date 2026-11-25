@@ -248,7 +248,7 @@ function htmlToDocxChildren(
 
     // Headings
     if (/^h[1-6]$/.test(tag)) {
-      const level = parseInt(tag[1]);
+      const level = Number.parseInt(tag[1], 10);
       const headingLevels = [
         HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3,
         HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6,

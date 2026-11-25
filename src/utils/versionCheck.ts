@@ -29,7 +29,7 @@ export async function fetchLatestGitHubVersion(): Promise<string | null> {
 
 /** Numeric dot-version comparison: isNewer('1.0.4', '1.0.5') → true. */
 export function isNewer(current: string, latest: string): boolean {
-  const parse = (v: string) => v.split('.').map((n) => parseInt(n, 10) || 0);
+  const parse = (v: string) => v.split('.').map((n) => Number.parseInt(n, 10) || 0);
   const c = parse(current);
   const l = parse(latest);
   for (let i = 0; i < Math.max(c.length, l.length); i += 1) {

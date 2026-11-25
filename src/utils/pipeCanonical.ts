@@ -44,18 +44,21 @@ export function canonicalizePipeTables(markdown: string): string {
   const out: string[] = [];
   let fence: string | null = null;
 
-  for (let i = 0; i < lines.length; i += 1) {
+  let i = 0;
+  while (i < lines.length) {
     const line = lines[i];
 
     if (fence !== null) {
       if (line.trimStart().startsWith(fence)) fence = null;
       out.push(line);
+      i += 1;
       continue;
     }
     const fenceMatch = /^\s{0,3}(```|~~~)/.exec(line);
     if (fenceMatch) {
       fence = fenceMatch[1];
       out.push(line);
+      i += 1;
       continue;
     }
 
@@ -66,6 +69,7 @@ export function canonicalizePipeTables(markdown: string): string {
 
     if (!header || !separator) {
       out.push(line);
+      i += 1;
       continue;
     }
 
@@ -92,7 +96,7 @@ export function canonicalizePipeTables(markdown: string): string {
     out.push(renderRow(headerCells));
     out.push(renderSeparator(separator));
     for (const row of body) out.push(renderRow(row));
-    i = j - 1;
+    i = j;
   }
 
   return out.join('\n');
