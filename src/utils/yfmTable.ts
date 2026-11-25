@@ -99,12 +99,14 @@ function parseYfmTableBody(body: string[]): string[][] | null {
       continue;
     }
 
-    // Rows always start with a `||` token (compact one-line rows).
+    // Rows always start with a `||` token. When the previous row was never
+    // explicitly closed (`|| a | b |` with a single trailing pipe), the `||`
+    // both terminates it and opens the next one — the shape other YFM tools
+    // emit. A col-span marker that lands here ends up as a ragged row, which
+    // the column check below refuses, so such tables are still kept as YFM.
     if (s.startsWith('||')) {
       if (rowOpen) {
-        // A `||` while a row is open means the row was never terminated
-        // (or it is a col-span marker) — not convertible silently.
-        return null;
+        if (!endRow()) return null;
       }
       rowOpen = true;
       s = s.slice(2);
@@ -220,11 +222,57 @@ export function sanitizeYfmTables(markup: string): YfmConversionResult {
       out.push(...lines.slice(open, close + 1));
     } else {
       converted += 1;
-      out.push(...replacement.split('\n'));
+      const replacementLines = replacement.split('\n');
+      // The block's own surrounding blank line may already be there; never
+      // leave two empty lines where the document had one.
+      if (replacementLines[0] === '' && out.length > 0 && out[out.length - 1] === '') {
+        replacementLines.shift();
+      }
+      out.push(...replacementLines);
     }
     cursor = close + 1;
   }
   out.push(...lines.slice(cursor));
 
   return { value: out.join('\n'), converted, kept };
+}
+
+/**
+ * Rewrites every fully-understood YFM table into the compact one-line row form
+ * (`|| a | b ||`). The editor's own expanded serializer output is mis-parsed by
+ * its YFM parser (phantom trailing column) and one-line rows that end with a
+ * single pipe lose their rows there, so the document is normalised to the form
+ * the parser handles before it reaches the editor. Tables with spans or
+ * attributes are left exactly as written.
+ */
+export function rewriteYfmToCompact(markup: string): string {
+  if (!markup.includes('#|')) return markup;
+
+  const lines = markup.split('\n');
+  const blocks = findYfmBlocks(lines);
+  if (blocks.length === 0) return markup;
+
+  const escapeCell = (cell: string) => cell.replace(/\|/g, '\\|');
+  const out: string[] = [];
+  let cursor = 0;
+  let changed = 0;
+
+  for (const { open, close } of blocks) {
+    out.push(...lines.slice(cursor, open));
+    const rows = parseYfmTableBody(lines.slice(open + 1, close));
+    if (rows === null) {
+      out.push(...lines.slice(open, close + 1));
+    } else {
+      changed += 1;
+      out.push('#|');
+      for (const row of rows) {
+        out.push(`|| ${row.map(escapeCell).join(' | ')} ||`);
+      }
+      out.push('|#');
+    }
+    cursor = close + 1;
+  }
+  out.push(...lines.slice(cursor));
+
+  return changed > 0 ? out.join('\n') : markup;
 }

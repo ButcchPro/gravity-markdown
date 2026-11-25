@@ -63,6 +63,7 @@ export default function App() {
     // Read straight from the editor on save: freshest content + YFM table
     // conversion (kept tables are reported by the save flow via the result).
     getValue: () => editorRef.current?.sanitizeForSave() ?? { value: currentValue, converted: 0, kept: 0 },
+    getSettledValue: () => editorRef.current?.getSettledValue() ?? Promise.resolve(currentValue),
     beforeReplace,
   });
   const { handleImportDocx, handleImportXlsx } = useImport({

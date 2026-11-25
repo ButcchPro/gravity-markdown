@@ -97,7 +97,7 @@ test('parses TOML into plain objects', () => {
 });
 
 import { normalizeInlineBreaks } from '../src/utils/inlineBreaks.ts';
-import { sanitizeYfmTables as normalizeYfmTablesForTest } from '../src/utils/yfmTable.ts';
+import { sanitizeYfmTables as normalizeYfmTablesForTest, rewriteYfmToCompact as rewriteYfmToCompactForTest } from '../src/utils/yfmTable.ts';
 
 test('turns <br> in a table row into spaces', () => {
   const input = '| Command | Note |\n| --- | --- |\n| psql<br>-h host | Connect<br>now |';
@@ -161,4 +161,65 @@ test('converts the editor 15.50 expanded form (trailing separator line)', () => 
     normalizeYfmTablesForTest(input).value,
     '# T\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n',
   );
+});
+
+test('converts one-line rows with a single trailing pipe (other YFM tools)', () => {
+  const input = '# T\n\n#|\n|| A | B |\n|| 1 | 2 |\n|#\n';
+  assert.equal(
+    normalizeYfmTablesForTest(input).value,
+    '# T\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n',
+  );
+});
+
+test('keeps col-span tables as YFM', () => {
+  const input = '# T\n\n#|\n|| A | B | C |\n|| span ||\n|| x | y | z |\n|#\n';
+  const result = normalizeYfmTablesForTest(input);
+  assert.equal(result.converted, 0);
+  assert.equal(result.kept, 1);
+  assert.equal(result.value, input);
+});
+
+test('rewrites expanded YFM to compact rows and leaves spans alone', () => {
+  const expanded = '# T\n\n#|\n||\n\nA\n\n|\n\nB\n\n|\n\n||\n|#\n';
+  assert.equal(
+    rewriteYfmToCompactForTest(expanded),
+    '# T\n\n#|\n|| A | B ||\n|#\n',
+  );
+
+  const span = '# T\n\n#|\n|| A | B | C |\n|| span ||\n|| x | y | z |\n|#\n';
+  assert.equal(rewriteYfmToCompactForTest(span), span);
+});
+
+test('rewrites one-line single-trailing-pipe rows to compact form', () => {
+  const input = '# T\n\n#|\n|| A | B |\n|| 1 | 2 |\n|#\n';
+  assert.equal(
+    rewriteYfmToCompactForTest(input),
+    '# T\n\n#|\n|| A | B ||\n|| 1 | 2 ||\n|#\n',
+  );
+});
+
+import { canonicalizePipeTables } from '../src/utils/pipeCanonical.ts';
+
+test('canonicalises the editor compact table form and drops the empty row', () => {
+  const input = '# T\n\n|A|B|\n|:---|:---|\n||\n';
+  assert.equal(
+    canonicalizePipeTables(input),
+    '# T\n\n| A | B |\n| :--- | :--- |\n',
+  );
+});
+
+test('keeps alignment markers and data rows', () => {
+  const input = '|A|B|C|\n|:---|:---:|---:|\n|1|2|3|\n';
+  assert.equal(
+    canonicalizePipeTables(input),
+    '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n',
+  );
+});
+
+test('is idempotent and leaves code fences alone', () => {
+  const pretty = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+  assert.equal(canonicalizePipeTables(pretty), pretty);
+
+  const fenced = '```\n|A|B|\n|:---|:---|\n```\n';
+  assert.equal(canonicalizePipeTables(fenced), fenced);
 });

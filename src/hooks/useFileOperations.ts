@@ -5,6 +5,7 @@ import { getFileName, isViewableFile, SUPPORTED_EXTENSIONS } from '../utils/path
 import { notify } from '../utils/notify';
 import { describeIpcError, invokeReadFileContent } from '../types/ipc';
 import type { YfmConversionResult } from '../utils/yfmTable';
+import { rewriteYfmToCompact } from '../utils/yfmTable';
 import type { ReplaceDecision, ReplaceRequest } from './useReplaceGuard';
 import { detectFileKind, isDataKind, VIEWABLE_EXTENSIONS, type FileKind } from '../types/fileKind';
 import { normalizeInlineBreaks } from '../utils/inlineBreaks';
@@ -17,13 +18,20 @@ export interface UseFileOperationsParams {
    */
   getValue?: () => YfmConversionResult;
   /**
+   * Canonical markup the editor holds after it finishes re-serialising a
+   * document swapped by `getValue` (YFM → pipe). Saving that exact string keeps
+   * the file and the editor in agreement, so the document is not left dirty
+   * right after a successful save.
+   */
+  getSettledValue?: () => Promise<string>;
+  /**
    * Guard for operations that replace the open document. Returns
    * 'cancel' to abort, 'replace' to continue.
    */
   beforeReplace?: (request: ReplaceRequest) => Promise<ReplaceDecision>;
 }
 
-export function useFileOperations({ getValue, beforeReplace }: UseFileOperationsParams = {}) {
+export function useFileOperations({ getValue, getSettledValue, beforeReplace }: UseFileOperationsParams = {}) {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [content, setContent] = useState('# Welcome to Gravity Markdown\n\nStart typing here...');
   const [currentValue, setCurrentValue] = useState(content);
@@ -39,7 +47,8 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
       notify('Data files are read-only here — open the file in an editor to change it', 'warning');
       return false;
     }
-    const { value, kept } = getValue ? getValue() : { value: currentValue, kept: 0 };
+    const { value, kept, converted } = getValue ? getValue() : { value: currentValue, kept: 0, converted: 0 };
+    const settled = converted > 0 && getSettledValue ? await getSettledValue() : value;
     if (kept > 0) {
       notify(
         `${kept} YFM table(s) kept: contains cell spans or block content — cannot be converted to a standard table`,
@@ -47,8 +56,8 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
       );
     }
     try {
-      await safeWriteTextFile(path, value);
-      setContent(value);
+      await safeWriteTextFile(path, settled);
+      setContent(settled);
       notify('Saved!', 'success');
       return true;
     } catch (e) {
@@ -56,14 +65,23 @@ export function useFileOperations({ getValue, beforeReplace }: UseFileOperations
       notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
-  }, [currentValue, getValue, fileKind]);
+  }, [currentValue, getValue, getSettledValue, fileKind]);
 
   const dirty = currentValue !== content;
 
   const loadContent = useCallback((newContent: string, newFile: string | null = null, showToast = false) => {
     const kind = newFile ? detectFileKind(newFile) ?? 'markdown' : 'markdown';
-    // <br> is a literal atom in the editor; normalise it for markdown only.
-    const normalized = kind === 'markdown' ? normalizeInlineBreaks(newContent) : newContent;
+    // Two normalisations, markdown only:
+    // 1. `<br>` is a literal atom in the editor, so it becomes a real break.
+    // 2. YFM tables the parser fully understands are rewritten to the compact
+    //    row form: the editor's expanded serializer output is mis-parsed by
+    //    its YFM parser (phantom trailing column) and one-line rows ending in
+    //    a single pipe lose their rows. Tables with spans stay as written; the
+    //    final pipe conversion still happens on save.
+    let normalized = newContent;
+    if (kind === 'markdown') {
+      normalized = rewriteYfmToCompact(normalizeInlineBreaks(newContent));
+    }
     setCurrentFile(newFile);
     setFileKind(kind);
     setContent(normalized);

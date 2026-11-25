@@ -5,6 +5,7 @@ import { LatexExtension } from '@gravity-ui/markdown-editor-latex-extension';
 import { Mermaid } from '@gravity-ui/markdown-editor/extensions/additional/Mermaid/index.js';
 import { applyTablePasteExtensions } from '../editor/tablePaste';
 import { sanitizeYfmTables, type YfmConversionResult } from '../utils/yfmTable';
+import { canonicalizePipeTables } from '../utils/pipeCanonical';
 
 export interface EditorHandle {
   /**
@@ -16,6 +17,8 @@ export interface EditorHandle {
   sanitizeForSave: () => YfmConversionResult;
   /** Inserts markdown at the caret (DOCX import → "Insert at cursor"). */
   insertMarkup: (markup: string) => void;
+  /** Canonical markup after the editor has finished re-serialising. */
+  getSettledValue: () => Promise<string>;
 }
 
 interface EditorWrapperProps {
@@ -52,7 +55,9 @@ export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: Edi
   }, [onSave]);
 
   useEffect(() => {
-    const handler = () => debouncedSave(editor.getValue());
+    // The debounced stream and the save path must agree on one canonical form,
+    // otherwise the file and the editor text differ and the doc reads dirty.
+    const handler = () => debouncedSave(canonicalizePipeTables(editor.getValue()));
     editor.on('change', handler);
     return () => {
       editor.off('change', handler);
@@ -81,7 +86,11 @@ export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: Edi
     }
     const sanitized = sanitizeYfmTables(current);
     if (sanitized.converted > 0) {
-      editor.replace(sanitized.value); // keeps the editor in sync with the saved content
+      editor.replace(sanitized.value);
+      // Persist exactly what the editor serialises after the swap: otherwise
+      // the saved text and the editor's own markup differ, and the document
+      // reads as dirty immediately after a successful save.
+      return { ...sanitized, value: editor.getValue() };
     }
     return sanitized;
   }, [editor]);
@@ -90,7 +99,22 @@ export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: Edi
     editor.insert(markup);
   }, [editor]);
 
-  useImperativeHandle(ref, () => ({ sanitizeForSave, insertMarkup }), [sanitizeForSave, insertMarkup]);
+  // The editor serialises lazily: right after `replace()` the value can still
+  // be the text we handed over, and the canonical markup appears on the next
+  // frame. Saving must persist the canonical form, otherwise the file and the
+  // editor disagree and the document reads dirty after a successful save.
+  const getSettledValue = useCallback(async (): Promise<string> => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    return canonicalizePipeTables(editor.getValue());
+  }, [editor]);
+
+  useImperativeHandle(
+    ref,
+    () => ({ sanitizeForSave, insertMarkup, getSettledValue }),
+    [sanitizeForSave, insertMarkup, getSettledValue],
+  );
 
   // Keyboard escape from the editing surface: ProseMirror/CodeMirror consume
   // Tab and keep the focus trapped, so Esc returns to the app toolbar — the
