@@ -97,6 +97,7 @@ test('parses TOML into plain objects', () => {
 });
 
 import { normalizeInlineBreaks } from '../src/utils/inlineBreaks.ts';
+import { sanitizeYfmTables as normalizeYfmTablesForTest } from '../src/utils/yfmTable.ts';
 
 test('turns <br> in a table row into spaces', () => {
   const input = '| Command | Note |\n| --- | --- |\n| psql<br>-h host | Connect<br>now |';
@@ -119,4 +120,45 @@ test('handles all br spellings and leaves other html alone', () => {
 test('leaves markdown without br untouched', () => {
   const input = '# Title\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
   assert.equal(normalizeInlineBreaks(input), input);
+});
+
+test('converts the editor 15.50 expanded form (trailing separator line)', () => {
+  // Exact output of @gravity-ui/markdown-editor 15.50.0 getValue() for a 2x2
+  // table: every cell on its own line and a trailing `|` before the row `||`.
+  const input = [
+    '# T',
+    '',
+    '#|',
+    '||',
+    '',
+    'A',
+    '',
+    '|',
+    '',
+    'B',
+    '',
+    '|',
+    '',
+    '',
+    '||',
+    '||',
+    '',
+    '1',
+    '',
+    '|',
+    '',
+    '2',
+    '',
+    '|',
+    '',
+    '',
+    '||',
+    '|#',
+    '',
+  ].join('\n');
+
+  assert.equal(
+    normalizeYfmTablesForTest(input).value,
+    '# T\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n',
+  );
 });

@@ -73,7 +73,9 @@ function parseYfmTableBody(body: string[]): string[][] | null {
   };
 
   const endRow = (): boolean => {
-    if (!pushCell()) return false;
+    // A row that ends right after a separator (the editor ≥15.50 serializer
+    // emits a trailing `|` line) has no extra cell — never invent one.
+    if (pending.length > 0 && !pushCell()) return false;
     // Chains of bare `||` (row terminator + next row start) produce no row.
     if (cells.length > 0) rows.push([...cells]);
     cells = [];
@@ -112,6 +114,17 @@ function parseYfmTableBody(body: string[]): string[][] | null {
     if (s.endsWith('||')) {
       rowEnded = true;
       s = s.slice(0, -2);
+    }
+
+    // A line that is only a separator terminates the current cell. When
+    // nothing is pending it is stray padding around the serializer's own
+    // newlines — it must not create an empty cell.
+    if (s.trim() === '|') {
+      if (pending.length > 0 && !pushCell()) return null;
+      if (rowEnded) {
+        if (!endRow()) return null;
+      }
+      continue;
     }
 
     // Remaining unescaped pipes are cell boundaries (inline in the compact
