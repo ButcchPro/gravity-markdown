@@ -34,7 +34,22 @@ function renderRow(cells: string[]): string {
 }
 
 function renderSeparator(cells: string[]): string {
-  return `| ${cells.map((cell) => (cell === '' ? '---' : cell)).join(' | ')} |`;
+  return `| ${cells.map(normalizeSeparatorCell).join(' | ')} |`;
+}
+
+/**
+ * Left alignment is the GFM default, so `:---` and `---` mean the same thing.
+ * The editor emits the explicit `:---` form; collapsing it keeps files in the
+ * style their author wrote and stops tables from looking "edited" after a save.
+ */
+function normalizeSeparatorCell(cell: string): string {
+  if (!SEPARATOR_CELL.test(cell)) return '---';
+  const compact = cell.replace(/\s/g, '');
+  const alignedLeft = compact.startsWith(':');
+  const alignedRight = compact.endsWith(':');
+  if (alignedLeft && alignedRight) return ':---:';
+  if (alignedRight) return '---:';
+  return '---';
 }
 
 export function canonicalizePipeTables(markdown: string): string {

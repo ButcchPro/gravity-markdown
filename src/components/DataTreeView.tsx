@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TreeRow } from '../utils/dataFormat';
 import { pathToJsonPath } from '../utils/dataFormat';
-
-const ROW_HEIGHT = 22;
-const OVERSCAN = 8;
+import { ROW_HEIGHT, virtualWindow } from '../utils/virtualWindow';
 
 interface DataTreeViewProps {
   rows: TreeRow[];
@@ -25,8 +23,7 @@ export function DataTreeView({ rows, collapsed, onToggle }: DataTreeViewProps) {
     return () => observer.disconnect();
   }, []);
 
-  const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const end = Math.min(rows.length, Math.ceil((scrollTop + height) / ROW_HEIGHT) + OVERSCAN);
+  const { start, end } = virtualWindow(rows.length, scrollTop, height);
   const visible = rows.slice(start, end);
 
   const copyPath = (row: TreeRow) => {

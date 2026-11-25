@@ -82,17 +82,17 @@ export function EditorWrapper({ initialContent, onSave, onModeChange, ref }: Edi
   const sanitizeForSave = useCallback((): YfmConversionResult => {
     const current = editor.getValue();
     if (!current.includes('#|')) {
-      return { value: current, converted: 0, kept: 0 };
+      // Same canonical form the change stream uses: writing anything else would
+      // make the file differ from the editor's own text and read as dirty.
+      return { value: canonicalizePipeTables(current), converted: 0, kept: 0 };
     }
     const sanitized = sanitizeYfmTables(current);
     if (sanitized.converted > 0) {
       editor.replace(sanitized.value);
-      // Persist exactly what the editor serialises after the swap: otherwise
-      // the saved text and the editor's own markup differ, and the document
-      // reads as dirty immediately after a successful save.
-      return { ...sanitized, value: editor.getValue() };
+      // Persist exactly what the editor serialises after the swap.
+      return { ...sanitized, value: canonicalizePipeTables(editor.getValue()) };
     }
-    return sanitized;
+    return { ...sanitized, value: canonicalizePipeTables(sanitized.value) };
   }, [editor]);
 
   const insertMarkup = useCallback((markup: string) => {

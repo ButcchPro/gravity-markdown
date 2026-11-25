@@ -204,7 +204,7 @@ test('canonicalises the editor compact table form and drops the empty row', () =
   const input = '# T\n\n|A|B|\n|:---|:---|\n||\n';
   assert.equal(
     canonicalizePipeTables(input),
-    '# T\n\n| A | B |\n| :--- | :--- |\n',
+    '# T\n\n| A | B |\n| --- | --- |\n',
   );
 });
 
@@ -212,7 +212,7 @@ test('keeps alignment markers and data rows', () => {
   const input = '|A|B|C|\n|:---|:---:|---:|\n|1|2|3|\n';
   assert.equal(
     canonicalizePipeTables(input),
-    '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n',
+    '| A | B | C |\n| --- | :---: | ---: |\n| 1 | 2 | 3 |\n',
   );
 });
 

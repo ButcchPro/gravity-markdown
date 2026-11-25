@@ -10,12 +10,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test:utils": "node --experimental-strip-types --test tests/utils.test.ts",
+    "test:utils": "node --experimental-strip-types --import ./tests/ts-resolve.mjs --test tests/utils.test.ts",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:data": "node --experimental-strip-types --test tests/dataFormat.test.ts",
-    "test": "npm run test:utils && npm run test:data",
-    "test:coverage": "npx -y c8 --reporter=lcov --reporter=text-summary --include=\"src/**\" node --experimental-strip-types --test tests/utils.test.ts tests/dataFormat.test.ts"
+    "test:data": "node --experimental-strip-types --import ./tests/ts-resolve.mjs --test tests/dataFormat.test.ts tests/dataViewerLoad.test.ts tests/utilsMisc.test.ts tests/workers.test.ts tests/ipc.test.ts tests/tablePaste.test.ts",
+    "test": "npm run test:utils && npm run test:data && npm run test:export && npm run test:hooks",
+    "test:coverage": "npx -y c8 --reporter=lcov --reporter=text-summary --include=\"src/**\" node --experimental-strip-types --import ./tests/ts-resolve.mjs --test tests/utils.test.ts tests/dataFormat.test.ts tests/dataViewerLoad.test.ts tests/utilsMisc.test.ts tests/workers.test.ts tests/ipc.test.ts tests/tablePaste.test.ts tests/htmlToDocx.test.ts tests/latexToUnicode.test.ts tests/exportDocx.test.ts tests/hooks.test.ts tests/fileOperations.test.ts",
+    "test:export": "node --experimental-strip-types --import ./tests/ts-resolve.mjs --test tests/htmlToDocx.test.ts tests/latexToUnicode.test.ts tests/exportDocx.test.ts",
+    "test:hooks": "node --experimental-strip-types --import ./tests/ts-resolve.mjs --test tests/hooks.test.ts tests/fileOperations.test.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -56,6 +58,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.12.1",
+    "@types/jsdom": "^21.1.7",
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^25.9.9",
     "@types/react": "^19.3.0",
@@ -66,6 +69,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
+    "jsdom": "^27.4.0",
     "sass": "^1.105.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.71.1",

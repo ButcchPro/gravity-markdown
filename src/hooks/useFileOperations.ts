@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { safeReadTextFile, safeWriteTextFile } from '../utils/ipc';
 import { getFileName, isViewableFile, SUPPORTED_EXTENSIONS } from '../utils/path';
@@ -9,6 +9,41 @@ import { rewriteYfmToCompact } from '../utils/yfmTable';
 import type { ReplaceDecision, ReplaceRequest } from './useReplaceGuard';
 import { detectFileKind, isDataKind, VIEWABLE_EXTENSIONS, type FileKind } from '../types/fileKind';
 import { normalizeInlineBreaks } from '../utils/inlineBreaks';
+import { normalizeForCompare, stripTrailingBlank } from '../utils/markdownText';
+
+/** Side-effecting collaborators, injected so the file lifecycle is testable. */
+export interface FileOperationsDeps {
+  openDialog: () => Promise<string | null>;
+  saveDialog: () => Promise<string | null>;
+  /** Reads through the generic text reader (used by the Open dialog). */
+  readFile: (path: string) => Promise<string>;
+  /** Reads through the content IPC (used when a path arrives from the OS). */
+  readFileContent: (path: string) => Promise<string>;
+  writeFile: (path: string, text: string) => Promise<void>;
+  notify: (message: string, theme: 'success' | 'warning' | 'danger') => void;
+}
+
+const defaultDeps: FileOperationsDeps = {
+  openDialog: async () => {
+    const file = await open({
+      multiple: false,
+      filters: [
+        { name: 'Markdown & data files', extensions: [...VIEWABLE_EXTENSIONS] },
+        { name: 'Markdown', extensions: [...SUPPORTED_EXTENSIONS] },
+        { name: 'Data files', extensions: ['json', 'jsonc', 'json5', 'yaml', 'yml', 'toml'] },
+      ],
+    });
+    return typeof file === 'string' ? file : null;
+  },
+  saveDialog: async () => {
+    const file = await save({ filters: [{ name: 'Markdown', extensions: ['md'] }] });
+    return typeof file === 'string' ? file : null;
+  },
+  readFile: safeReadTextFile,
+  readFileContent: invokeReadFileContent,
+  writeFile: safeWriteTextFile,
+  notify,
+};
 
 export interface UseFileOperationsParams {
   /**
@@ -29,9 +64,18 @@ export interface UseFileOperationsParams {
    * 'cancel' to abort, 'replace' to continue.
    */
   beforeReplace?: (request: ReplaceRequest) => Promise<ReplaceDecision>;
+  /** Overrides for tests. */
+  deps?: Partial<FileOperationsDeps>;
 }
 
-export function useFileOperations({ getValue, getSettledValue, beforeReplace }: UseFileOperationsParams = {}) {
+export function useFileOperations({
+  getValue,
+  getSettledValue,
+  beforeReplace,
+  deps: overrides,
+}: UseFileOperationsParams = {}) {
+  // Stable identity: callbacks below depend on it. Callers pass a memoised object.
+  const deps: FileOperationsDeps = useMemo(() => ({ ...defaultDeps, ...overrides }), [overrides]);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [content, setContent] = useState('# Welcome to Gravity Markdown\n\nStart typing here...');
   const [currentValue, setCurrentValue] = useState(content);
@@ -44,30 +88,35 @@ export function useFileOperations({ getValue, getSettledValue, beforeReplace }: 
   // regression can never rewrite user JSON/YAML.
   const persist = useCallback(async (path: string): Promise<boolean> => {
     if (isDataKind(fileKind)) {
-      notify('Data files are read-only here — open the file in an editor to change it', 'warning');
+      deps.notify('Data files are read-only here — open the file in an editor to change it', 'warning');
       return false;
     }
     const { value, kept, converted } = getValue ? getValue() : { value: currentValue, kept: 0, converted: 0 };
     const settled = converted > 0 && getSettledValue ? await getSettledValue() : value;
     if (kept > 0) {
-      notify(
+      deps.notify(
         `${kept} YFM table(s) kept: contains cell spans or block content — cannot be converted to a standard table`,
         'warning',
       );
     }
     try {
-      await safeWriteTextFile(path, settled);
-      setContent(settled);
-      notify('Saved!', 'success');
+      const written = stripTrailingBlank(settled);
+      await deps.writeFile(path, written);
+      // Adopt the saved text as both baselines: the editor may re-serialise
+      // differently from the file it was opened from.
+      setContent(written);
+      setCurrentValue(written);
+      deps.notify('Saved!', 'success');
       return true;
     } catch (e) {
       console.error(e);
-      notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
+      deps.notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
-  }, [currentValue, getValue, getSettledValue, fileKind]);
+  }, [currentValue, getValue, getSettledValue, fileKind, deps]);
 
-  const dirty = currentValue !== content;
+  // Serializer noise (CRLF, trailing newline) is not an edit.
+  const dirty = normalizeForCompare(currentValue) !== normalizeForCompare(content);
 
   const loadContent = useCallback((newContent: string, newFile: string | null = null, showToast = false) => {
     const kind = newFile ? detectFileKind(newFile) ?? 'markdown' : 'markdown';
@@ -88,14 +137,14 @@ export function useFileOperations({ getValue, getSettledValue, beforeReplace }: 
     setCurrentValue(normalized);
     setFileKey(prev => prev + 1);
     if (showToast && newFile) {
-      notify(`Opened: ${getFileName(newFile)}`, 'success');
+      deps.notify(`Opened: ${getFileName(newFile)}`, 'success');
     }
-  }, []);
+  }, [deps]);
 
   const handleOpenFile = useCallback(async (path: string) => {
     try {
       if (!isViewableFile(path)) {
-        notify(
+        deps.notify(
           "This file type can't be opened here — choose .md, .json, .yaml or another supported file",
           'danger',
         );
@@ -104,36 +153,29 @@ export function useFileOperations({ getValue, getSettledValue, beforeReplace }: 
       // Never replace a document with unsaved edits without asking first.
       const decision = await beforeReplace?.({ sourceName: getFileName(path), allowInsert: false });
       if (decision === 'cancel') return;
-      const text = await invokeReadFileContent(path);
+      const text = await deps.readFileContent(path);
       loadContent(text, path, true);
     } catch (e) {
       console.error(e);
       // Rust rejects binary garbage with FS_INVALID_DATA / file too large etc.
-      notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
+      deps.notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
     }
-  }, [beforeReplace, loadContent]);
+  }, [beforeReplace, loadContent, deps]);
 
   const handleOpen = useCallback(async () => {
     try {
-      const file = await open({
-        multiple: false,
-        filters: [
-          { name: 'Markdown & data files', extensions: [...VIEWABLE_EXTENSIONS] },
-          { name: 'Markdown', extensions: [...SUPPORTED_EXTENSIONS] },
-          { name: 'Data files', extensions: ['json', 'jsonc', 'json5', 'yaml', 'yml', 'toml'] },
-        ],
-      });
-      if (file && typeof file === 'string') {
+      const file = await deps.openDialog();
+      if (file) {
         const decision = await beforeReplace?.({ sourceName: getFileName(file), allowInsert: false });
         if (decision === 'cancel') return;
-        const text = await safeReadTextFile(file);
+        const text = await deps.readFile(file);
         loadContent(text, file, true);
       }
     } catch (e) {
       console.error(e);
-      notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
+      deps.notify(`Couldn't open the file — ${describeIpcError(e)}`, 'danger');
     }
-  }, [beforeReplace, loadContent]);
+  }, [beforeReplace, loadContent, deps]);
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     if (currentFile) {
@@ -145,12 +187,10 @@ export function useFileOperations({ getValue, getSettledValue, beforeReplace }: 
   const handleSaveAs = useCallback(async (): Promise<boolean> => {
     try {
       if (isDataKind(fileKind)) {
-        notify('Data files are read-only here — open the file in an editor to change it', 'warning');
+        deps.notify('Data files are read-only here — open the file in an editor to change it', 'warning');
         return false;
       }
-      const file = await save({
-        filters: [{ name: 'Markdown', extensions: ['md'] }],
-      });
+      const file = await deps.saveDialog();
       if (file) {
         const saved = await persist(file);
         if (saved) {
@@ -161,10 +201,10 @@ export function useFileOperations({ getValue, getSettledValue, beforeReplace }: 
       return false;
     } catch (e) {
       console.error(e);
-      notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
+      deps.notify(`Couldn't save the file — ${describeIpcError(e)}`, 'danger');
       return false;
     }
-  }, [persist, fileKind]);
+  }, [persist, fileKind, deps]);
 
   return {
     currentFile,

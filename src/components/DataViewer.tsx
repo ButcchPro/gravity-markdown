@@ -2,25 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, TextInput } from '@gravity-ui/uikit';
 import { DataTextView } from './DataTextView';
 import { DataTreeView } from './DataTreeView';
+import type { TreeRow } from '../utils/dataFormat';
 import {
-  buildTreeRows,
-  collectStats,
-  parseAnyDataText,
-  type DataStats,
-  type TreeRow,
-} from '../utils/dataFormat';
-import type { DataParseResponse } from '../workers/dataParse.worker';
-import { fileKindLabel, type DataKind } from '../types/fileKind';
+  PARSE_INLINE_LIMIT,
+  byteLength,
+  loadDataInline,
+  loadFromWorkerResponse,
+  visibleRows as computeVisibleRows,
+  type DataViewerLoad,
+  type DataViewerStatus,
+  type DataParseWorkerResponse,
+} from '../utils/dataViewerLoad';
+import type { DataKind } from '../types/fileKind';
 import { runWorker } from '../utils/worker';
 
 export type DataViewMode = 'tree' | 'text';
-
-export interface DataViewerStatus {
-  label: string;
-  valid: boolean;
-  stats: DataStats | null;
-  error: { line: number; column: number; message: string } | null;
-}
+export type { DataViewerStatus };
 
 interface DataViewerProps {
   content: string;
@@ -28,50 +25,24 @@ interface DataViewerProps {
   onStatus: (status: DataViewerStatus) => void;
 }
 
-/** Files up to this size parse on the main thread so collapse/search are cheap. */
-const PARSE_INLINE_LIMIT = 256 * 1024;
-
 export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
   const [mode, setMode] = useState<DataViewMode>('tree');
-  const [parsedValue, setParsedValue] = useState<unknown>(undefined);
-  const [workerRows, setWorkerRows] = useState<TreeRow[]>([]);
+  const [load, setLoad] = useState<DataViewerLoad | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('');
-  const [status, setStatus] = useState<DataViewerStatus>({
-    label: fileKindLabel(kind),
-    valid: true,
-    stats: null,
-    error: null,
-  });
 
   useEffect(() => {
     let cancelled = false;
-    const bytes = new TextEncoder().encode(content).length;
 
-    const apply = (next: DataViewerStatus, rows: TreeRow[], value: unknown) => {
+    const apply = (next: DataViewerLoad) => {
       if (cancelled) return;
-      setParsedValue(value);
-      setWorkerRows(rows);
+      setLoad(next);
       setCollapsed(new Set());
-      setStatus(next);
-      onStatus(next);
+      onStatus(next.status);
     };
 
-    if (bytes <= PARSE_INLINE_LIMIT) {
-      const parsed = parseAnyDataText(content, kind);
-      if (parsed.ok) {
-        apply(
-          { label: fileKindLabel(kind), valid: true, stats: collectStats(parsed.value, bytes), error: null },
-          buildTreeRows(parsed.value, new Set(), ''),
-          parsed.value,
-        );
-      } else {
-        apply(
-          { label: fileKindLabel(kind), valid: false, stats: null, error: parsed.error },
-          [],
-          undefined,
-        );
-      }
+    if (byteLength(content) <= PARSE_INLINE_LIMIT) {
+      apply(loadDataInline(content, kind));
       return () => {
         cancelled = true;
       };
@@ -80,20 +51,11 @@ export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
     const createWorker = () =>
       new Worker(new URL('../workers/dataParse.worker.ts', import.meta.url), { type: 'module' });
 
-    void runWorker<{ text: string; kind: DataKind }, DataParseResponse>(createWorker, {
+    void runWorker<{ text: string; kind: DataKind }, DataParseWorkerResponse>(createWorker, {
       text: content,
       kind,
     }).then((response) => {
-      apply(
-        {
-          label: fileKindLabel(kind),
-          valid: response.ok,
-          stats: response.stats,
-          error: response.error,
-        },
-        response.rows,
-        undefined,
-      );
+      apply(loadFromWorkerResponse(kind, response));
     });
 
     return () => {
@@ -101,15 +63,12 @@ export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
     };
   }, [content, kind, onStatus]);
 
-  const visibleRows = useMemo(() => {
-    if (!status.valid) return [];
-    if (parsedValue !== undefined) return buildTreeRows(parsedValue, collapsed, filter);
-    const query = filter.trim().toLowerCase();
-    if (query === '') return workerRows;
-    return workerRows.filter(
-      (row) => row.label.toLowerCase().includes(query) || row.preview.toLowerCase().includes(query),
-    );
-  }, [status.valid, parsedValue, workerRows, collapsed, filter]);
+  const rows: TreeRow[] = useMemo(
+    () => (load ? computeVisibleRows(load, collapsed, filter) : []),
+    [load, collapsed, filter],
+  );
+
+  const status = load?.status ?? { label: '', valid: true, stats: null, error: null };
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -151,7 +110,7 @@ export function DataViewer({ content, kind, onStatus }: DataViewerProps) {
       )}
       <div className="data-viewer__body">
         {mode === 'tree' ? (
-          <DataTreeView rows={visibleRows} collapsed={collapsed} onToggle={toggle} />
+          <DataTreeView rows={rows} collapsed={collapsed} onToggle={toggle} />
         ) : (
           <DataTextView text={content} kind={kind} />
         )}

@@ -13,10 +13,10 @@ import type { ExtensionBuilder } from '@gravity-ui/markdown-editor';
 import { Plugin } from 'prosemirror-state';
 import { Slice } from 'prosemirror-model';
 import TurndownService from 'turndown';
-import { rowsToPipeTable } from '../utils/pipeTable';
+import { rowsToPipeTable } from '../utils/pipeTable.ts';
 
 /** Cell texts of an HTML table converted to pipe-table rows. */
-function htmlTableToPipeTable(table: HTMLTableElement): string {
+export function htmlTableToPipeTable(table: HTMLTableElement): string {
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length === 0) return '';
 
