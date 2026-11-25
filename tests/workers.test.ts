@@ -11,6 +11,8 @@ interface LoadedWorker {
   messages: unknown[];
 }
 
+// method, so a no-op keeps the import path happy without affecting behaviour.
+
 let workerLoadCount = 0;
 
 /**
@@ -96,4 +98,38 @@ test('xlsxImport worker returns an empty table for an empty sheet', async () => 
   const reply = messages.at(-1) as { table: string; error?: string };
   assert.equal(reply.table, '');
   assert.equal(reply.error, undefined);
+});
+// ── data files → tree rows ─────────────────────────────────────────────────
+
+test('dataParse worker returns rows and stats for valid JSON', async () => {
+  const { handle, messages } = await loadWorker('../src/workers/dataParse.worker.ts');
+
+  handle({ data: { text: '{"name":"demo","items":[1,2]}', kind: 'json' } });
+
+  const reply = messages.at(-1) as {
+    ok: boolean;
+    rows: Array<{ label: string }>;
+    stats: { objects: number; arrays: number } | null;
+    error: unknown;
+  };
+  assert.equal(reply.ok, true);
+  assert.equal(reply.error, null);
+  assert.equal(reply.stats?.objects, 1);
+  assert.equal(reply.stats?.arrays, 1);
+  assert.ok(reply.rows.some((row) => row.label === 'name'));
+});
+
+test('dataParse worker reports a parse error position', async () => {
+  const { handle, messages } = await loadWorker('../src/workers/dataParse.worker.ts');
+
+  handle({ data: { text: '{\n "a" 1\n}', kind: 'json' } });
+
+  const reply = messages.at(-1) as {
+    ok: boolean;
+    rows: unknown[];
+    error: { line: number; column: number } | null;
+  };
+  assert.equal(reply.ok, false);
+  assert.equal(reply.rows.length, 0);
+  assert.equal(reply.error?.line, 2);
 });

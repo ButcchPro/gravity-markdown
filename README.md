@@ -26,15 +26,22 @@
 Download the latest version of GravityMD for your platform:
 
 *   💻 **Windows (x64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_x64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_x64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.1/gravitymd_1.1.1_x64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.1/gravitymd_1.1.1_x64-setup.exe)
 *   💻 **Windows (ARM64)**:
-    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_arm64_en-US.msi)
-    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_arm64-setup.exe)
+    *   [MSI Installer](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.1/gravitymd_1.1.1_arm64_en-US.msi)
+    *   [NSIS (EXE) Setup](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.1/gravitymd_1.1.1_arm64-setup.exe)
 *   🍎 **macOS (Universal)**:
-    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.0/gravitymd_1.1.0_universal.dmg)
+    *   [DMG Image](https://github.com/ButcchPro/gravity-markdown/releases/download/v1.1.1/gravitymd_1.1.1_universal.dmg)
 
 👉 Or visit the **[Releases Page](https://github.com/ButcchPro/gravity-markdown/releases/latest)** to view all versions and changelogs.
+
+## 🆕 What's New in 1.1.1
+
+*   **Engine 15.50.0** — updated the Gravity UI markdown editor (serializer fixes for multiline text, Unicode indentation and indented paragraphs, plus safer mode switching).
+*   **Tables fixed for good** — YFM wide-tables no longer show a phantom empty column or lose rows, `<br>` inside cells renders as a break instead of literal text, and saved tables keep the author's `| --- |` separators.
+*   **Honest save state** — a successful save always reports "All changes saved"; the file on disk and the editor text are compared through one canonical form.
+*   **Quality baseline** — 234 automated tests (logic + UI), SonarQube: 0 bugs, 0 code smells, 0 vulnerabilities, 92.7% coverage; dependency audit reduced from 29 to 13 advisories, none critical.
 
 ## 🆕 What's New in 1.1.0
 

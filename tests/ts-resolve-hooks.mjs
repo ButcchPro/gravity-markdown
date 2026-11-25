@@ -38,6 +38,11 @@ export async function load(url, context, nextLoad) {
   if (/\.(css|scss|sass|less)$/.test(url)) {
     return { format: 'module', source: 'export default {};', shortCircuit: true };
   }
+  // The `setimmediate` polyfill probes legacy IE APIs when a DOM-like `self`
+  // exists. Node already has setImmediate/clearImmediate, so skip the polyfill.
+  if (/node_modules\/(setimmediate|set-immediate-shim)\//.test(url)) {
+    return { format: 'module', source: 'export {};', shortCircuit: true };
+  }
   if (/\.json$/.test(url)) {
     const json = readFileSync(fileURLToPath(url), 'utf8');
     return { format: 'module', source: `export default ${json};`, shortCircuit: true };

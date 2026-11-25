@@ -265,7 +265,7 @@ test('handleSave reports a write failure', async () => {
   });
 
   assert.equal(saved, false);
-  assert.match(record.notices.at(-1).message, /larger than the 32 MB/);
+  assert.match(record.notices.at(-1)?.message ?? '', /larger than the 32 MB/);
   await hook.unmount();
 });
 
@@ -428,7 +428,7 @@ test('DOCX import stops on cancel and on an empty document', async () => {
   await empty.act(async () => {
     await empty.current.handleImportDocx();
   });
-  assert.match(record.notices.at(-1).message, /appears to be empty/);
+  assert.match(record.notices.at(-1)?.message ?? '', /appears to be empty/);
   await empty.unmount();
 });
 
@@ -461,13 +461,14 @@ test('DOCX import reports conversion errors', async () => {
 
 test('spreadsheet import appends the table to the document', async () => {
   const record = recorder();
-  let loaded: { content: string; file: string | null } | null = null;
+  const loaded: { content?: string; file?: string | null } = {};
   const hook = await renderHook(() =>
     useImport({
       currentValue: '# Sheet\n',
       currentFile: 'C:/sheet.md',
       loadContent: (content, file) => {
-        loaded = { content, file };
+        loaded.content = content;
+        loaded.file = file;
       },
       deps: importDeps(record, { openDialog: async () => 'C:/book.xlsx' }),
     }),
@@ -477,8 +478,8 @@ test('spreadsheet import appends the table to the document', async () => {
     await hook.current.handleImportXlsx();
   });
 
-  assert.equal(loaded?.content, '# Sheet\n\n| a |\n| --- |\n| 1 |\n');
-  assert.equal(loaded?.file, 'C:/sheet.md');
+  assert.equal(loaded.content, '# Sheet\n\n| a |\n| --- |\n| 1 |\n');
+  assert.equal(loaded.file, 'C:/sheet.md');
   assert.deepEqual(record.notices.at(-1), { message: 'Imported Spreadsheet', theme: 'success' });
   await hook.unmount();
 });
@@ -499,7 +500,7 @@ test('spreadsheet import warns about an empty sheet and errors', async () => {
   await empty.act(async () => {
     await empty.current.handleImportXlsx();
   });
-  assert.match(record.notices.at(-1).message, /Spreadsheet is empty/);
+  assert.match(record.notices.at(-1)?.message ?? '', /Spreadsheet is empty/);
   await empty.unmount();
 
   const failing = await renderHook(() =>

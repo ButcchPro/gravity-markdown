@@ -2,7 +2,7 @@
 /// Receives { buffer: ArrayBuffer }, replies with { markdown, warnings }.
 
 import mammoth from 'mammoth';
-import TurndownService from 'turndown';
+import { convertDocxToMarkdown } from '../utils/docxConvert.ts';
 
 interface ImportDocxRequest {
   buffer: ArrayBuffer;
@@ -11,18 +11,10 @@ interface ImportDocxRequest {
 self.onmessage = async (event: MessageEvent<ImportDocxRequest>) => {
   const { buffer } = event.data;
   try {
-    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
-    const turndownService = new TurndownService();
-    const markdown = turndownService.turndown(result.value);
-
-    const warnings = Array.isArray(result.messages)
-      ? result.messages.map((m: { message: string }) => m.message)
-      : [];
-
-    self.postMessage({
-      markdown: markdown.trim() ? markdown : '',
-      warnings,
-    });
+    const result = await convertDocxToMarkdown(buffer, (data) =>
+      mammoth.convertToHtml({ arrayBuffer: data }),
+    );
+    self.postMessage(result);
   } catch (e) {
     self.postMessage({
       markdown: '',
